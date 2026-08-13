@@ -32,14 +32,26 @@ class AuthService:
 
     async def register_user(self, req: RegisterRequest) -> UserResponse:
         """
-        Register a new user, hash password, assign requested role, and persist to database.
+        Register a public user account.
+
+        ADMIN accounts must never be self-assigned through public registration.
+        Doctor accounts may be created here for the current development workflow;
+        Phase 3 adds the administrator verification/approval process.
         """
+        requested_role = req.role_name.strip().upper()
+        if requested_role == "ADMIN":
+            raise BadRequestException(
+                "ADMIN accounts cannot be created through public registration."
+            )
+
+        if requested_role not in {"PATIENT", "DOCTOR"}:
+            raise BadRequestException("Invalid registration role.")
+
         existing_user = await self.user_repo.get_by_email(req.email)
         if existing_user:
             raise ConflictException(f"User with email '{req.email}' already exists.")
 
-        # Ensure requested role exists
-        target_role = await self.user_repo.create_role_if_not_exists(req.role_name)
+        target_role = await self.user_repo.create_role_if_not_exists(requested_role)
 
         hashed_pwd = get_password_hash(req.password)
         user_data = {
@@ -55,7 +67,6 @@ class AuthService:
         await self.user_repo.assign_role_to_user(user, target_role)
         await self.db.commit()
 
-        # Re-fetch user with loaded roles
         updated_user = await self.user_repo.get_by_email(user.email)
         return UserResponse.model_validate(updated_user)
 
@@ -70,14 +81,12 @@ class AuthService:
         if not user.is_active:
             raise UnauthorizedException("User account has been deactivated.")
 
-        # Extract role names for JWT claims
         roles = [r.name for r in user.roles]
         claims = {"roles": roles, "is_superuser": user.is_superuser}
 
         access_token = create_access_token(subject=user.id, claims=claims)
         refresh_token_str = create_refresh_token(subject=user.id)
 
-        # Store Refresh Token in DB
         expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         await self.token_repo.create({
             "user_id": user.id,
@@ -111,10 +120,8 @@ class AuthService:
         if not user or not user.is_active:
             raise UnauthorizedException("User account associated with token is inactive.")
 
-        # Revoke old refresh token (rotation policy)
         await self.token_repo.update(token_record, {"is_revoked": True})
 
-        # Issue new tokens
         roles = [r.name for r in user.roles]
         claims = {"roles": roles, "is_superuser": user.is_superuser}
 

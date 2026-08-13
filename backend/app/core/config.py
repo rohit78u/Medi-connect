@@ -1,13 +1,14 @@
-import sys
-from typing import List, Union
-from pydantic import AnyHttpUrl, Field, field_validator
+from typing import List
+import secrets
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """
-    Application Settings powered by Pydantic v2 Settings.
-    Reads environment variables from .env file or environment shell.
+    Application settings loaded from environment variables or a local .env file.
+    Secrets are intentionally not stored in source control.
     """
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -16,14 +17,15 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    # General Project Attributes
     PROJECT_NAME: str = "MediConnect AI"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
 
     # Security & Tokens
-    SECRET_KEY: str = "super_secret_jwt_key_mediconnect_ai_2026_change_in_prod"
+    # A random development key is generated when no environment value is supplied.
+    # Production deployments must provide a persistent SECRET_KEY.
+    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -32,20 +34,21 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres_password"
+    POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = "mediconnect_db"
     DATABASE_URI: str | None = None
 
     @field_validator("DATABASE_URI", mode="before")
+    @classmethod
     def assemble_db_connection(cls, v: str | None, info) -> str:
         if isinstance(v, str) and v.strip():
             return v
         values = info.data
-        user = values.get("POSTGRES_USER")
-        password = values.get("POSTGRES_PASSWORD")
-        host = values.get("POSTGRES_SERVER")
-        port = values.get("POSTGRES_PORT")
-        db = values.get("POSTGRES_DB")
+        user = values.get("POSTGRES_USER", "postgres")
+        password = values.get("POSTGRES_PASSWORD", "")
+        host = values.get("POSTGRES_SERVER", "localhost")
+        port = values.get("POSTGRES_PORT", 5432)
+        db = values.get("POSTGRES_DB", "mediconnect_db")
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
     # Redis & Celery
@@ -64,6 +67,18 @@ class Settings(BaseSettings):
 
     # AI Configuration
     GEMINI_API_KEY: str = ""
+
+    # Payment configuration. Real gateway integration is Phase 2.
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_production_secret(cls, value: str, info) -> str:
+        environment = info.data.get("ENVIRONMENT", "development")
+        if environment.lower() == "production" and len(value) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters in production")
+        return value
 
 
 settings = Settings()

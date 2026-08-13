@@ -26,6 +26,38 @@ async def test_user_registration(async_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_public_admin_registration_is_rejected(async_client: AsyncClient):
+    """Public registration must never allow self-assigned ADMIN accounts."""
+    payload = {
+        "email": "attacker-admin@mediconnect.ai",
+        "password": "Password123!",
+        "full_name": "Attempted Admin",
+        "role_name": "ADMIN"
+    }
+
+    response = await async_client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 400
+    data = response.json()
+    assert data["success"] is False
+    assert "ADMIN accounts cannot be created" in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_invalid_registration_role_is_rejected(async_client: AsyncClient):
+    """Only PATIENT and DOCTOR are currently supported by public registration."""
+    payload = {
+        "email": "invalid-role@mediconnect.ai",
+        "password": "Password123!",
+        "full_name": "Invalid Role",
+        "role_name": "STAFF"
+    }
+
+    response = await async_client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 400
+    assert response.json()["success"] is False
+
+
+@pytest.mark.asyncio
 async def test_duplicate_email_registration_fails(async_client: AsyncClient):
     """
     Test registering with an existing email returns 409 Conflict.
@@ -86,7 +118,6 @@ async def test_rbac_doctor_route_permissions(async_client: AsyncClient):
     - PATIENT trying to access /doctor-only gets 403 Forbidden.
     - DOCTOR accessing /doctor-only gets 200 OK.
     """
-    # 1. Register a Doctor
     doctor_payload = {
         "email": "doctor@mediconnect.ai",
         "password": "DoctorPassword123!",
@@ -95,7 +126,6 @@ async def test_rbac_doctor_route_permissions(async_client: AsyncClient):
     }
     await async_client.post("/api/v1/auth/register", json=doctor_payload)
 
-    # 2. Login Patient & Doctor to retrieve access tokens
     patient_login = await async_client.post("/api/v1/auth/login", json={
         "email": "patient@mediconnect.ai",
         "password": "Password123!"
@@ -108,7 +138,6 @@ async def test_rbac_doctor_route_permissions(async_client: AsyncClient):
     })
     doctor_token = doctor_login.json()["data"]["access_token"]
 
-    # 3. Patient attempts doctor-only route (Expect 403 Forbidden)
     forbidden_resp = await async_client.get(
         "/api/v1/auth/doctor-only",
         headers={"Authorization": f"Bearer {patient_token}"}
@@ -116,7 +145,6 @@ async def test_rbac_doctor_route_permissions(async_client: AsyncClient):
     assert forbidden_resp.status_code == 403
     assert forbidden_resp.json()["success"] is False
 
-    # 4. Doctor attempts doctor-only route (Expect 200 OK)
     allowed_resp = await async_client.get(
         "/api/v1/auth/doctor-only",
         headers={"Authorization": f"Bearer {doctor_token}"}

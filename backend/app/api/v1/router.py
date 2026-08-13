@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     auth,
     doctors,
     health,
+    medical_records,
     patients,
     payments,
     websocket
@@ -23,3 +24,4 @@ api_v1_router.include_router(payments.router)
 api_v1_router.include_router(ai.router)
 api_v1_router.include_router(websocket.router)
 api_v1_router.include_router(admin.router)
+api_v1_router.include_router(medical_records.router)

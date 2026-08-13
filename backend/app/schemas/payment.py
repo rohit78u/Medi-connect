@@ -24,6 +24,7 @@ class PaymentResponse(BaseModel):
     user_id: uuid.UUID
     razorpay_order_id: str
     razorpay_payment_id: str | None = None
+    razorpay_key_id: str | None = None
     amount: float
     currency: str
     status: PaymentStatus

@@ -1,32 +1,24 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
-from app.db.base import Base
-from app.db.session import engine
 from app.middleware.exception_handler import register_exception_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Application Lifespan Context Manager.
-    Handles startup configuration, automatic table creation, and shutdown cleanups.
+    Application lifespan hooks.
+
+    Database schema changes are managed explicitly through Alembic migrations;
+    the application no longer creates tables automatically at startup.
     """
     setup_logging()
     logger.info(f"Starting {settings.PROJECT_NAME} API in [{settings.ENVIRONMENT}] mode...")
-
-    # Auto-create database tables on startup
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schema verified and initialized.")
-    except Exception as e:
-        logger.warning(f"Database schema auto-init warning: {str(e)}")
-
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME} API gracefully...")
 
@@ -45,19 +37,15 @@ def create_application() -> FastAPI:
         lifespan=lifespan
     )
 
-    # Configure CORS Middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Permissive CORS for smooth local development & testing
+        allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    # Register Global Exception Middleware
     register_exception_handlers(app)
-
-    # Include API Router
     app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 
     return app

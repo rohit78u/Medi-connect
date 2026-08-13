@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.db.session import get_async_db
 from app.models.doctor import DoctorProfile
 from app.models.medical_record import MedicalRecord
 from app.models.patient import PatientProfile
@@ -36,7 +36,7 @@ async def _doctor_profile(db: AsyncSession, user_id: uuid.UUID) -> DoctorProfile
 @router.post("", response_model=PrescriptionResponse, status_code=status.HTTP_201_CREATED)
 async def create_prescription(
     payload: PrescriptionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     doctor = await _doctor_profile(db, current_user.id)
@@ -49,19 +49,16 @@ async def create_prescription(
         if not record or record.patient_id != patient.id or record.doctor_id != doctor.id:
             raise HTTPException(status_code=403, detail="Medical record access denied")
 
-    prescription = Prescription(
-        **payload.model_dump(),
-        doctor_id=doctor.id,
-    )
+    prescription = Prescription(**payload.model_dump(), doctor_id=doctor.id)
     db.add(prescription)
-    await db.commit()
+    await db.flush()
     await db.refresh(prescription)
     return prescription
 
 
 @router.get("/me", response_model=List[PrescriptionResponse])
 async def list_my_prescriptions(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     patient = await _patient_profile(db, current_user.id)

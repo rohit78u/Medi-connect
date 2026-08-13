@@ -1,0 +1,70 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.v1.router import api_v1_router
+from app.core.config import settings
+from app.core.logging import logger, setup_logging
+from app.db.base import Base
+from app.db.session import engine
+from app.middleware.exception_handler import register_exception_handlers
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application Lifespan Context Manager.
+    Handles startup configuration, automatic table creation, and shutdown cleanups.
+    """
+    setup_logging()
+    logger.info(f"Starting {settings.PROJECT_NAME} API in [{settings.ENVIRONMENT}] mode...")
+
+    # Auto-create database tables on startup
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schema verified and initialized.")
+    except Exception as e:
+        logger.warning(f"Database schema auto-init warning: {str(e)}")
+
+    yield
+    logger.info(f"Shutting down {settings.PROJECT_NAME} API gracefully...")
+
+
+def create_application() -> FastAPI:
+    """
+    Application Factory pattern creating and configuring the FastAPI instance.
+    """
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        description="Production-grade Healthcare SaaS Platform backend powered by FastAPI, SQLAlchemy 2.0, & Google Gemini AI.",
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        lifespan=lifespan
+    )
+
+    # Configure CORS Middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Permissive CORS for smooth local development & testing
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Register Global Exception Middleware
+    register_exception_handlers(app)
+
+    # Include API Router
+    app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+    return app
+
+
+app = create_application()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

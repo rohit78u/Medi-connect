@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 
 import httpx
@@ -154,9 +155,24 @@ Report text:
 
     @staticmethod
     def _report_fallback(req: MedicalReportParseRequest) -> dict[str, Any]:
+        """Extract only basic lab values explicitly present when Gemini is unavailable."""
+        text = req.report_text
+        metrics: list[dict[str, str]] = []
+        patterns = [
+            ("WBC", r"\bWBC\s*[:=]?\s*([\d,]+(?:\.\d+)?)\s*(/\s*mcL|cells?/\s*mcL)?"),
+            ("Hemoglobin", r"\bHemoglobin\s*[:=]?\s*([\d.]+)\s*(g/dL)?"),
+            ("Platelets", r"\bPlatelets\s*[:=]?\s*([\d,]+(?:\.\d+)?)\s*(/\s*mcL|cells?/\s*mcL)?"),
+        ]
+        for metric, pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                value = match.group(1)
+                unit = match.group(2) or ""
+                metrics.append({"metric": metric, "value": f"{value} {unit}".strip(), "status": "Reported"})
+
         return {
             "report_type": req.report_type or "Laboratory Report",
-            "key_metrics": [],
+            "key_metrics": metrics,
             "diagnosis_highlights": [],
             "recommended_actions": ["Share the report with a licensed medical professional."],
         }

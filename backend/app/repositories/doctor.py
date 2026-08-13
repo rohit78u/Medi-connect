@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.doctor import DoctorAvailability, DoctorProfile, Specialization
+from app.models.user import User
 from app.repositories.base import BaseRepository
 
 

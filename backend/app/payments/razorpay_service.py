@@ -1,69 +1,75 @@
 import hashlib
 import hmac
-import uuid
+
+import httpx
 
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class RazorpayService:
-    """
-    Razorpay client abstraction.
+    """Small async Razorpay REST client used by the payment service."""
 
-    Phase 1 removes hard-coded credentials. Phase 2 will replace the current
-    local order simulation with the real Razorpay API/Checkout integration.
-    """
     def __init__(self):
         self.key_id = settings.RAZORPAY_KEY_ID
         self.key_secret = settings.RAZORPAY_KEY_SECRET
+        self.base_url = settings.RAZORPAY_API_BASE_URL.rstrip("/")
 
-    def create_order(self, amount: float, currency: str = "INR", receipt_id: str | None = None) -> dict:
-        """
-        Create a local test order representation.
+    def _require_credentials(self) -> None:
+        if not self.key_id or not self.key_secret:
+            raise RuntimeError("Razorpay credentials are not configured")
 
-        The actual Razorpay order API integration is intentionally deferred to
-        Phase 2. No gateway credentials are hard-coded here.
-        """
-        amount_in_paise = int(amount * 100)
-        generated_order_id = f"order_{uuid.uuid4().hex[:14]}"
+    async def create_order(
+        self,
+        amount: float,
+        currency: str = "INR",
+        receipt_id: str | None = None,
+    ) -> dict:
+        """Create a real Razorpay order. Amount is converted from INR to paise."""
+        self._require_credentials()
+        if amount <= 0:
+            raise ValueError("Payment amount must be greater than zero")
 
-        order_payload = {
-            "id": generated_order_id,
-            "entity": "order",
-            "amount": amount_in_paise,
+        payload = {
+            "amount": int(round(amount * 100)),
             "currency": currency.upper(),
-            "receipt": receipt_id or f"rcpt_{uuid.uuid4().hex[:10]}",
-            "status": "created"
+            "receipt": receipt_id,
+            "payment_capture": 1,
         }
-        logger.info(f"[TEST PAYMENT ORDER CREATED] Order ID: {generated_order_id} | Amount: {amount} {currency}")
-        return order_payload
+        if not payload["receipt"]:
+            payload.pop("receipt")
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{self.base_url}/orders",
+                json=payload,
+                auth=(self.key_id, self.key_secret),
+            )
+
+        if response.is_error:
+            logger.error("Razorpay order creation failed: %s", response.text[:500])
+            raise RuntimeError("Razorpay order creation failed")
+
+        return response.json()
 
     def verify_payment_signature(
         self,
         razorpay_order_id: str,
         razorpay_payment_id: str,
-        razorpay_signature: str
+        razorpay_signature: str,
     ) -> bool:
-        """
-        Verify a Razorpay HMAC-SHA256 payment signature when a gateway secret is configured.
-        """
+        """Verify Razorpay's HMAC-SHA256 checkout signature."""
         if not self.key_secret:
-            logger.error("Razorpay secret is not configured; payment verification cannot run.")
+            logger.error("Razorpay secret is not configured")
             return False
 
-        msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
+        message = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
         generated_signature = hmac.new(
             self.key_secret.encode("utf-8"),
-            msg,
-            hashlib.sha256
+            message,
+            hashlib.sha256,
         ).hexdigest()
-
-        is_valid = hmac.compare_digest(generated_signature, razorpay_signature)
-        if not is_valid:
-            logger.warning(
-                f"[RAZORPAY SIGNATURE MISMATCH] Order: {razorpay_order_id}"
-            )
-        return is_valid
+        return hmac.compare_digest(generated_signature, razorpay_signature)
 
 
 razorpay_service = RazorpayService()

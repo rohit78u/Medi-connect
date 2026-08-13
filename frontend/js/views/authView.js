@@ -11,13 +11,11 @@ export function renderAuthModal() {
           <button class="modal-close" onclick="document.getElementById('auth-modal').classList.remove('active')">&times;</button>
         </div>
 
-        <!-- Toggle Tabs -->
         <div style="display:flex; gap:1rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border-color); pb:0.5rem;">
           <button class="btn btn-secondary" id="tab-login" style="flex:1;">Sign In</button>
           <button class="btn btn-secondary" id="tab-register" style="flex:1;">Create Account</button>
         </div>
 
-        <!-- Login Form -->
         <form id="login-form">
           <div class="form-group">
             <label class="form-label">Email Address</label>
@@ -30,7 +28,6 @@ export function renderAuthModal() {
           <button type="submit" class="btn btn-primary" style="width:100%;">Sign In</button>
         </form>
 
-        <!-- Register Form (Hidden by default) -->
         <form id="register-form" style="display:none;">
           <div class="form-group">
             <label class="form-label">Full Name</label>
@@ -49,8 +46,10 @@ export function renderAuthModal() {
             <select id="reg-role" class="form-control">
               <option value="PATIENT">Patient</option>
               <option value="DOCTOR">Doctor / Clinician</option>
-              <option value="ADMIN">Hospital Administrator</option>
             </select>
+            <small style="display:block; margin-top:0.5rem; color:var(--text-muted);">
+              Administrator accounts are created through a protected admin workflow.
+            </small>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%;">Create Account</button>
         </form>

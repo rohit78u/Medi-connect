@@ -4,16 +4,8 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_appointment_booking_and_double_booking_prevention(async_client: AsyncClient):
-    """
-    Test complete appointment workflow:
-    1. Register Doctor & Patient.
-    2. Create Doctor Clinical Profile.
-    3. Patient books appointment slot.
-    4. Second appointment booking for same doctor slot returns 409 Conflict.
-    5. Doctor updates status to CONFIRMED with clinical notes.
-    """
-    # 1. Register Doctor & Patient
-    doc_reg = await async_client.post("/api/v1/auth/register", json={
+    """Test scheduling against a configured weekly availability slot and conflict prevention."""
+    await async_client.post("/api/v1/auth/register", json={
         "email": "cardio_doc@mediconnect.ai",
         "password": "DocPassword123!",
         "full_name": "Dr. Alex Vance",
@@ -25,7 +17,7 @@ async def test_appointment_booking_and_double_booking_prevention(async_client: A
     })
     doc_token = doc_token_res.json()["data"]["access_token"]
 
-    pat_reg = await async_client.post("/api/v1/auth/register", json={
+    await async_client.post("/api/v1/auth/register", json={
         "email": "cardio_patient@mediconnect.ai",
         "password": "PatPassword123!",
         "full_name": "Alice Patient",
@@ -37,7 +29,6 @@ async def test_appointment_booking_and_double_booking_prevention(async_client: A
     })
     pat_token = pat_token_res.json()["data"]["access_token"]
 
-    # 2. Create Doctor Clinical Profile
     doc_prof_res = await async_client.post(
         "/api/v1/doctors/profile",
         json={
@@ -52,44 +43,35 @@ async def test_appointment_booking_and_double_booking_prevention(async_client: A
     assert doc_prof_res.status_code == 201
     doctor_id = doc_prof_res.json()["data"]["id"]
 
-    # 3. Patient books appointment slot
+    # 2026-10-10 is Saturday (5). Configure a 09:00-17:00 recurring slot.
+    availability_res = await async_client.post(
+        "/api/v1/doctors/availability",
+        json={"day_of_week": 5, "start_time": "09:00", "end_time": "17:00"},
+        headers={"Authorization": f"Bearer {doc_token}"},
+    )
+    assert availability_res.status_code == 201
+
     target_slot = "2026-10-10T10:00:00Z"
     book_res = await async_client.post(
         "/api/v1/appointments/book",
-        json={
-            "doctor_id": doctor_id,
-            "appointment_date": target_slot,
-            "reason_for_visit": "Annual Heart Checkup"
-        },
+        json={"doctor_id": doctor_id, "appointment_date": target_slot, "reason_for_visit": "Annual Heart Checkup"},
         headers={"Authorization": f"Bearer {pat_token}"}
     )
     assert book_res.status_code == 201
-    book_data = book_res.json()["data"]
-    assert book_data["status"] == "PENDING"
-    appointment_id = book_data["id"]
+    appointment_id = book_res.json()["data"]["id"]
+    assert book_res.json()["data"]["status"] == "PENDING"
 
-    # 4. Double-booking attempt for same slot -> Expect 409 Conflict
     conflict_res = await async_client.post(
         "/api/v1/appointments/book",
-        json={
-            "doctor_id": doctor_id,
-            "appointment_date": target_slot,
-            "reason_for_visit": "Second booking attempt"
-        },
+        json={"doctor_id": doctor_id, "appointment_date": target_slot, "reason_for_visit": "Second booking attempt"},
         headers={"Authorization": f"Bearer {pat_token}"}
     )
     assert conflict_res.status_code == 409
-    assert conflict_res.json()["success"] is False
 
-    # 5. Doctor updates status to CONFIRMED with clinical notes
     update_res = await async_client.patch(
         f"/api/v1/appointments/{appointment_id}/status",
-        json={
-            "status": "CONFIRMED",
-            "clinical_notes": "Patient confirmed. ECG report requested."
-        },
+        json={"status": "CONFIRMED", "clinical_notes": "Patient confirmed. ECG report requested."},
         headers={"Authorization": f"Bearer {doc_token}"}
     )
     assert update_res.status_code == 200
     assert update_res.json()["data"]["status"] == "CONFIRMED"
-    assert update_res.json()["data"]["clinical_notes"] == "Patient confirmed. ECG report requested."

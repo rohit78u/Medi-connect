@@ -9,3 +9,4 @@ from app.models.payment import PaymentTransaction  # noqa: F401
 from app.models.medical_record import MedicalRecord  # noqa: F401
 from app.models.prescription import Prescription  # noqa: F401
 from app.models.lab_report import LabReport  # noqa: F401
+from app.models.medical_document import MedicalDocument  # noqa: F401

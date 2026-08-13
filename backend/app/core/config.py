@@ -6,10 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """
-    Application settings loaded from environment variables or a local .env file.
-    Secrets are intentionally not stored in source control.
-    """
+    """Application settings loaded from environment variables or a local .env file."""
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -22,15 +19,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
 
-    # Security & Tokens
-    # A random development key is generated when no environment value is supplied.
-    # Production deployments must provide a persistent SECRET_KEY.
     SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Database Configuration
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
@@ -51,13 +44,11 @@ class Settings(BaseSettings):
         db = values.get("POSTGRES_DB", "mediconnect_db")
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
-    # Redis & Celery
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
-    # CORS Configuration
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:8000",
@@ -65,12 +56,14 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8000"
     ]
 
-    # AI Configuration
+    # AI
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
-    # Payment configuration. Real gateway integration is Phase 2.
+    # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_API_BASE_URL: str = "https://api.razorpay.com/v1"
 
     @field_validator("SECRET_KEY")
     @classmethod

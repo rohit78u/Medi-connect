@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
+    admin,
     ai,
     appointments,
     auth,
@@ -21,3 +22,4 @@ api_v1_router.include_router(appointments.router)
 api_v1_router.include_router(payments.router)
 api_v1_router.include_router(ai.router)
 api_v1_router.include_router(websocket.router)
+api_v1_router.include_router(admin.router)

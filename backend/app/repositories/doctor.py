@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.doctor import DoctorAvailability, DoctorProfile, Specialization
+from app.models.user import User
 from app.repositories.base import BaseRepository
 
 
@@ -19,16 +20,11 @@ class SpecializationRepository(BaseRepository[Specialization]):
 
 
 class DoctorRepository(BaseRepository[DoctorProfile]):
-    """
-    Repository for Doctor Profile and Availability data access using Async SQLAlchemy 2.0.
-    """
+    """Repository for Doctor Profile and Availability data access."""
     def __init__(self, db: AsyncSession):
         super().__init__(DoctorProfile, db)
 
     async def get_by_user_id(self, user_id: uuid.UUID) -> Optional[DoctorProfile]:
-        """
-        Fetch doctor profile by associated user ID.
-        """
         stmt = (
             select(DoctorProfile)
             .where(DoctorProfile.user_id == user_id, DoctorProfile.is_active == True)
@@ -47,10 +43,15 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
         skip: int = 0,
         limit: int = 50
     ) -> List[DoctorProfile]:
-        """
-        Search doctors by specialization name.
-        """
-        stmt = select(DoctorProfile).where(DoctorProfile.is_active == True)
+        """Return only active and verified doctors that patients can book."""
+        stmt = (
+            select(DoctorProfile)
+            .join(DoctorProfile.user)
+            .where(
+                DoctorProfile.is_active == True,
+                User.is_verified == True,
+            )
+        )
         if specialization_name:
             stmt = stmt.join(DoctorProfile.specialization).where(
                 Specialization.name.ilike(f"%{specialization_name.strip()}%")
@@ -75,9 +76,6 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
         start_time: str,
         end_time: str
     ) -> DoctorAvailability:
-        """
-        Add an availability schedule slot for a doctor.
-        """
         slot = DoctorAvailability(
             doctor_id=doctor_id,
             day_of_week=day_of_week,

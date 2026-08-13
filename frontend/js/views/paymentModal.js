@@ -10,20 +10,15 @@ export function renderPaymentModal() {
           <h2>Razorpay Consultation Checkout</h2>
           <button class="modal-close" onclick="document.getElementById('payment-modal').classList.remove('active')">&times;</button>
         </div>
-
         <div style="text-align:center; margin-bottom:1.5rem;">
           <p class="page-subtitle">Total Consultation Fee</p>
           <h1 style="font-size:2.5rem; color:var(--accent-emerald);" id="pay-amount-display">₹0.00</h1>
         </div>
-
         <div style="padding:1rem; background:var(--bg-primary); border-radius:var(--radius-md); margin-bottom:1.5rem; border:1px solid var(--border-color);">
           <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.5rem;">Order Details:</p>
           <p style="font-size:0.9rem;">Order ID: <strong id="pay-order-id">-</strong></p>
         </div>
-
-        <button class="btn btn-primary" id="btn-submit-payment" style="width:100%;">
-          💳 Confirm & Pay via Razorpay
-        </button>
+        <button class="btn btn-primary" id="btn-submit-payment" style="width:100%;">💳 Pay securely via Razorpay</button>
       </div>
     </div>
   `;
@@ -31,15 +26,16 @@ export function renderPaymentModal() {
 
 let activePaymentData = null;
 
-export async function openPaymentModal(appointment_id, amount) {
+export async function openPaymentModal(appointment_id) {
   const modal = document.getElementById('payment-modal');
   if (!modal) return;
 
   try {
-    const payload = await api.post('/payments/create-order', { appointment_id, amount, currency: 'INR' });
+    // Amount is intentionally omitted. The backend calculates it from the doctor's fee.
+    const payload = await api.post('/payments/create-order', { appointment_id, currency: 'INR' });
     activePaymentData = payload.data;
 
-    document.getElementById('pay-amount-display').textContent = `₹${amount.toFixed(2)}`;
+    document.getElementById('pay-amount-display').textContent = `₹${Number(activePaymentData.amount).toFixed(2)}`;
     document.getElementById('pay-order-id').textContent = activePaymentData.razorpay_order_id;
     modal.classList.add('active');
   } catch (err) {
@@ -52,31 +48,59 @@ export function initPaymentListeners() {
   if (!btnPay) return;
 
   btnPay.addEventListener('click', async () => {
-    if (!activePaymentData) return;
+    if (!activePaymentData || !window.Razorpay) {
+      showToast('Razorpay Checkout is unavailable. Please refresh and try again.', 'error');
+      return;
+    }
 
     btnPay.disabled = true;
-    btnPay.textContent = 'Verifying HMAC Signature...';
+    btnPay.textContent = 'Opening secure checkout...';
 
-    // Simulate Razorpay Gateway Payment ID & Signature calculation for verification
-    const razorpay_payment_id = `pay_rzp_${Math.random().toString(36).substr(2, 9)}`;
-    // The backend mock verifies signature matching test format or passes verification
-    const razorpay_signature = 'rzp_test_signature_valid';
+    const options = {
+      key: activePaymentData.razorpay_key_id,
+      amount: Math.round(Number(activePaymentData.amount) * 100),
+      currency: activePaymentData.currency,
+      name: 'MediConnect AI',
+      description: 'Medical consultation',
+      order_id: activePaymentData.razorpay_order_id,
+      theme: { color: '#0f766e' },
+      handler: async (response) => {
+        try {
+          await api.post('/payments/verify', {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          showToast('Payment verified successfully! Appointment confirmed.', 'success');
+          document.getElementById('payment-modal').classList.remove('active');
+          await loadAppointments();
+        } catch (err) {
+          showToast(err.message, 'error');
+        } finally {
+          btnPay.disabled = false;
+          btnPay.textContent = '💳 Pay securely via Razorpay';
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          btnPay.disabled = false;
+          btnPay.textContent = '💳 Pay securely via Razorpay';
+        },
+      },
+    };
 
     try {
-      await api.post('/payments/verify', {
-        razorpay_order_id: activePaymentData.razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response) => {
+        showToast(response.error?.description || 'Payment failed.', 'error');
+        btnPay.disabled = false;
+        btnPay.textContent = '💳 Pay securely via Razorpay';
       });
-
-      showToast('Payment verified successfully! Appointment confirmed.', 'success');
-      document.getElementById('payment-modal').classList.remove('active');
-      loadAppointments();
+      razorpay.open();
     } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
+      showToast('Unable to open Razorpay Checkout.', 'error');
       btnPay.disabled = false;
-      btnPay.textContent = '💳 Confirm & Pay via Razorpay';
+      btnPay.textContent = '💳 Pay securely via Razorpay';
     }
   });
 }

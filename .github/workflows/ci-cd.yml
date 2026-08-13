@@ -64,6 +64,8 @@ jobs:
           DATABASE_URI: postgresql+asyncpg://postgres:ci_test_password@localhost:5432/mediconnect_db
           SECRET_KEY: ci-test-secret-key-do-not-use-in-production
           POSTGRES_PASSWORD: ci_test_password
+          RAZORPAY_KEY_ID: rzp_test_ci
+          RAZORPAY_KEY_SECRET: ci-test-razorpay-secret
           CELERY_BROKER_URL: redis://localhost:6379/0
           CELERY_RESULT_BACKEND: redis://localhost:6379/0
         run: pytest --cov=app --cov-report=term-missing tests/

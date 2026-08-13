@@ -6,3 +6,4 @@ from app.models.patient import PatientProfile  # noqa: F401
 from app.models.doctor import DoctorProfile, Specialization, DoctorAvailability  # noqa: F401
 from app.models.appointment import Appointment  # noqa: F401
 from app.models.payment import PaymentTransaction  # noqa: F401
+from app.models.medical_record import MedicalRecord  # noqa: F401

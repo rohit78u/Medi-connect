@@ -4,6 +4,7 @@ import hmac
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import settings
 from app.payments.razorpay_service import razorpay_service
 
 
@@ -75,7 +76,8 @@ async def test_payment_order_creation_and_verification(async_client: AsyncClient
     assert order_res.status_code == 201
     order_data = order_res.json()["data"]
     assert order_data["amount"] == 200.0
-    assert order_data["razorpay_key_id"] == "rzp_test_key"
+    # The public checkout key is configuration-driven; the service secret is only used server-side.
+    assert order_data["razorpay_key_id"] == settings.RAZORPAY_KEY_ID
     razorpay_order_id = order_data["razorpay_order_id"]
 
     razorpay_payment_id = "pay_TEST_99887766"

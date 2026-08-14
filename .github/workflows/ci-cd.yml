@@ -2,9 +2,13 @@ name: MediConnect CI/CD
 
 on:
   push:
-    branches: ["main", "phase-*"]
+    branches:
+      - main
+      - "phase-*"
+      - phase-5-production
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -92,3 +96,20 @@ jobs:
           file: ./backend/Dockerfile
           push: false
           tags: mediconnect-ai:ci
+
+  production-config:
+    name: Validate Production Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate production Compose syntax
+        run: docker compose -f docker-compose.production.yml config --quiet
+
+      - name: Verify required production services
+        run: |
+          docker compose -f docker-compose.production.yml config --services | grep -qx db
+          docker compose -f docker-compose.production.yml config --services | grep -qx redis
+          docker compose -f docker-compose.production.yml config --services | grep -qx backend
+          docker compose -f docker-compose.production.yml config --services | grep -qx celery

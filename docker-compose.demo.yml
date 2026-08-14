@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mediconnect_demo
+      POSTGRES_USER: mediconnect
+      POSTGRES_PASSWORD: mediconnect_demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - mediconnect_demo_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediconnect -d mediconnect_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PROJECT_NAME: "MediConnect AI Demo"
+      ENVIRONMENT: "demo"
+      DEBUG: "False"
+      SECRET_KEY: "demo-only-secret-change-me"
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: mediconnect
+      POSTGRES_PASSWORD: mediconnect_demo
+      POSTGRES_DB: mediconnect_demo
+      DATABASE_URI: postgresql+asyncpg://mediconnect:mediconnect_demo@db:5432/mediconnect_demo
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      BACKEND_CORS_ORIGINS: '["http://127.0.0.1:8080","http://localhost:8080"]'
+      GEMINI_API_KEY: ""
+      RAZORPAY_KEY_ID: ""
+      RAZORPAY_KEY_SECRET: ""
+      MEDICAL_DOCUMENT_STORAGE: /app/storage/medical_documents
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python scripts/seed_demo.py && uvicorn main:app --host 0.0.0.0 --port 8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - demo_medical_documents:/app/storage/medical_documents
+
+  frontend:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+
+volumes:
+  mediconnect_demo_db:
+  demo_medical_documents:

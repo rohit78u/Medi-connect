@@ -1,46 +1,52 @@
 # 🏥 MediConnect
 
-> A backend-focused healthcare platform built with **Python and FastAPI**, designed around secure authentication, role-based access, database-driven workflows, asynchronous processing, and scalable backend architecture.
+> A backend-focused healthcare platform built with **Python and FastAPI**, with secure authentication, role-based access control, asynchronous database workflows, background processing, automated testing, and containerized development.
 
 ## 📌 Overview
 
-MediConnect is a healthcare application designed to connect patients, doctors, and administrators through a structured backend system.
+MediConnect connects patients, doctors, and administrators through a structured REST API and healthcare workflow system. The project demonstrates practical backend engineering with authentication, authorization, PostgreSQL, asynchronous SQLAlchemy, Redis/Celery, Alembic migrations, testing, Docker, and CI/CD.
 
-The project focuses on practical backend engineering concepts including **REST API development, JWT authentication, RBAC, asynchronous database access, Redis/Celery background processing, database migrations, automated testing, and clean architecture**.
+## ✨ Core Features
 
-## ✨ Key Features
-
-- 🔐 **Authentication & Authorization** — JWT-based authentication with access/refresh tokens
-- ✉️ **Email Verification** — Account verification workflow using email-based verification
-- 👥 **Role-Based Access Control** — Separate access for patients, doctors, and administrators
-- 👨‍⚕️ **Doctor Management** — Doctor profiles and management workflows
-- 🗄️ **Async Database Layer** — SQLAlchemy 2.0 with PostgreSQL/asyncpg
-- ⚡ **Background Processing** — Redis and Celery for asynchronous tasks
-- 🔄 **Database Migrations** — Alembic-based schema migration workflow
-- 🧪 **Automated Testing** — pytest and pytest-asyncio
-- 🐳 **Containerized Development** — Docker-based development workflow
-- 📚 **API Documentation** — FastAPI-generated Swagger/OpenAPI documentation
+- 🔐 JWT authentication with access and refresh tokens
+- 🔒 Role-based authorization for patients, doctors, and administrators
+- 🔁 Refresh-token rotation with hashed token persistence
+- ✉️ Email verification workflow
+- 👨‍⚕️ Doctor profiles and administrator verification workflow
+- 📅 Appointment management with role and verified-doctor checks
+- 🩺 Patient and medical-record workflows
+- 💊 Prescription and lab-report workflows
+- 💳 Payment integration structure
+- 🤖 AI-assisted healthcare workflow integration
+- ⚡ Redis and Celery background processing
+- 🗄️ PostgreSQL with SQLAlchemy 2.0 and asyncpg
+- 🔄 Alembic database migrations
+- 🧪 pytest-based automated tests with coverage
+- 🐳 Docker and Docker Compose development setup
+- 📚 FastAPI Swagger/OpenAPI documentation
+- ⚙️ GitHub Actions CI/CD with Ruff, tests, coverage, compilation checks, and Docker builds
 
 ## 🏗️ Architecture
 
 ```text
-                    ┌──────────────────────┐
-                    │      Frontend        │
-                    └──────────┬───────────┘
-                               │ REST API
-                               ▼
-                    ┌──────────────────────┐
-                    │    FastAPI Backend   │
-                    │                      │
-                    │ Routes / Services    │
-                    │ Auth / RBAC          │
-                    │ Business Logic       │
-                    └──────┬─────────┬─────┘
-                           │         │
-                ┌──────────▼──┐  ┌──▼─────────────┐
-                │ PostgreSQL  │  │ Redis + Celery │
-                │ SQLAlchemy  │  │ Background Jobs│
-                └─────────────┘  └────────────────┘
+Client / Frontend
+       │
+       ▼
+FastAPI REST API
+       │
+       ├── Authentication / RBAC
+       ├── Request Validation
+       ├── Service Layer
+       └── Repository Layer
+              │
+       ┌──────┴──────────┐
+       ▼                 ▼
+ PostgreSQL         Redis / Celery
+ SQLAlchemy         Background Jobs
+       │
+       ▼
+    Alembic
+   Migrations
 ```
 
 ## 🛠️ Tech Stack
@@ -50,31 +56,36 @@ The project focuses on practical backend engineering concepts including **REST A
 | Language | Python |
 | Backend | FastAPI, Uvicorn |
 | API | REST, Swagger/OpenAPI |
-| Validation & Configuration | Pydantic, Pydantic Settings |
+| Validation | Pydantic, Pydantic Settings |
 | Database | PostgreSQL, SQLAlchemy 2.0, asyncpg |
 | Migrations | Alembic |
 | Authentication | JWT, bcrypt, RBAC |
 | Background Processing | Redis, Celery |
+| AI | Gemini API integration |
+| Payments | Razorpay integration |
 | Testing | pytest, pytest-asyncio, pytest-cov |
-| Development | Docker |
+| Quality | Ruff, compile checks |
+| DevOps | Docker, Docker Compose, GitHub Actions |
 
-## 🔐 Authentication Flow
+## 🔐 Authentication & Authorization
 
 ```text
-User Registration
-       ↓
+Registration
+    ↓
 Email Verification
-       ↓
+    ↓
 Login
-       ↓
-JWT Access + Refresh Tokens
-       ↓
-Authenticated API Requests
-       ↓
-Role-Based Authorization
+    ↓
+Access + Refresh Tokens
+    ↓
+Authenticated Request
+    ↓
+RBAC / Resource Authorization
 ```
 
-## 🔄 Core Backend Workflow
+Refresh tokens are rotated and persisted in hashed form rather than storing the raw credential in the database.
+
+## 🔄 Request Flow
 
 ```text
 Client Request
@@ -85,36 +96,40 @@ Authentication / Authorization
       ↓
 Pydantic Validation
       ↓
-Service / Business Logic
+Service Layer
       ↓
-SQLAlchemy Async Session
+Repository Layer
+      ↓
+Async SQLAlchemy
       ↓
 PostgreSQL
 ```
 
-Background tasks can be delegated through:
+Long-running or asynchronous work can be delegated through:
 
 ```text
-FastAPI
-   ↓
-Celery Task
-   ↓
-Redis Broker
-   ↓
-Celery Worker
+FastAPI → Celery Task → Redis → Celery Worker
 ```
 
 ## 📁 Project Structure
 
 ```text
 Medi-connect/
-├── .github/             # CI/CD workflows
-├── backend/              # FastAPI backend
-│   ├── app/              # Application source code
-│   ├── tests/            # Backend tests
-│   └── requirements.txt  # Python dependencies
-├── frontend/             # Frontend application
-├── ROADMAP.md            # Development roadmap
+├── .github/workflows/    # CI/CD
+├── backend/
+│   ├── app/
+│   │   ├── api/          # API routes
+│   │   ├── core/         # Configuration, security, dependencies
+│   │   ├── models/       # SQLAlchemy models
+│   │   ├── repositories/ # Data-access layer
+│   │   ├── schemas/      # Pydantic schemas
+│   │   ├── services/     # Business logic
+│   │   ├── ai/           # AI integration
+│   │   └── payments/     # Payment integration
+│   ├── alembic/          # Database migrations
+│   └── tests/            # Automated tests
+├── frontend/             # Frontend client
+├── ROADMAP.md            # Future improvements
 └── .gitignore
 ```
 
@@ -128,14 +143,14 @@ Medi-connect/
 - Git
 - Docker (recommended)
 
-### Backend Setup
+### Backend
 
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-Activate the virtual environment:
+Activate the environment:
 
 ```bash
 # Windows
@@ -151,71 +166,84 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Configure the required environment variables using the project's environment configuration.
+Configure environment variables using `backend/.env.example` as the template.
 
-Run the API with:
+Run the API:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Once running, FastAPI provides interactive API documentation at:
+Interactive API documentation:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-## 🧪 Testing
+### Docker
 
-Run the backend test suite with:
+The backend includes Docker and Docker Compose configuration for local development and service integration.
+
+## 🧪 Testing
 
 ```bash
 cd backend
 pytest -v
 ```
 
-For coverage:
+Coverage:
 
 ```bash
-pytest --cov
+pytest --cov=app --cov-report=term-missing
+```
+
+Linting:
+
+```bash
+ruff check app tests
 ```
 
 ## 🔄 Database Migrations
 
-The project uses Alembic for database schema migrations.
-
-Typical workflow:
-
 ```bash
-alembic revision --autogenerate -m "migration message"
+cd backend
 alembic upgrade head
 ```
 
-## 🐳 Docker
+Create a migration when the schema changes:
 
-Docker is part of the project's development and reliability workflow. The repository roadmap includes validating the complete Docker Compose setup before production deployment. fileciteturn13file0L2-L2
+```bash
+alembic revision --autogenerate -m "migration message"
+```
 
-## 📚 Development Roadmap
+## ⚙️ CI/CD
 
-The project is being developed in phases covering reliability, the core healthcare workflow, user experience, healthcare features, and production deployment. fileciteturn13file0L2-L2
+GitHub Actions validates the backend using:
 
-Current planned areas include doctor availability, secure payments, AI-assisted healthcare workflows, dashboards, medical records, prescriptions, deployment, monitoring, and backups.
+- Ruff linting
+- PostgreSQL and Redis service containers
+- pytest with coverage
+- Python compilation checks
+- Docker image build
+
+The workflow runs on pushes to `main`/phase branches and pull requests targeting `main`.
 
 ## 🎯 What This Project Demonstrates
 
-- Building backend applications with **FastAPI and Python**
-- Designing **REST APIs**
-- Implementing **JWT authentication and RBAC**
-- Working with **SQLAlchemy 2.0 and asynchronous database access**
-- Using **PostgreSQL and Alembic migrations**
-- Designing **background processing with Redis and Celery**
-- Writing automated backend tests with **pytest**
-- Structuring backend systems for maintainability and scalability
-- Applying a phase-based development and CI/CD workflow
+- Designing REST APIs with FastAPI
+- Implementing JWT authentication and RBAC
+- Protecting role-specific healthcare workflows
+- Building asynchronous database access with SQLAlchemy 2.0
+- Managing PostgreSQL schemas with Alembic
+- Using Redis and Celery for background processing
+- Integrating external AI and payment services
+- Writing automated backend tests
+- Containerizing services with Docker
+- Enforcing code quality through CI/CD
 
 ## 📌 Project Status
 
-MediConnect is an actively developed portfolio project. The roadmap tracks the remaining implementation and production-hardening work.
+MediConnect is a **portfolio and learning project**. Core backend workflows are implemented and the repository is being continuously hardened. Production deployment, monitoring, backups, and additional operational hardening remain future improvements.
 
 ## 📄 License
 

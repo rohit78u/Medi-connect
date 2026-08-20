@@ -52,7 +52,7 @@ class GeminiAIService:
             text = body["candidates"][0]["content"]["parts"][0]["text"]
             parsed = json.loads(text)
             if not isinstance(parsed, dict):
-                raise ValueError("Gemini returned a non-object JSON response")
+                raise TypeError("Gemini returned a non-object JSON response")
             return parsed
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
             logger.exception("Gemini request/validation failed: %s", exc)

@@ -1,5 +1,5 @@
 import uuid
-from datetime import time
+from datetime import datetime, time
 from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,6 @@ class AppointmentService:
 
     @staticmethod
     def _time_from_value(value: str) -> time:
-        """Parse stored HH:MM/HH:MM:SS availability values safely."""
         try:
             parts = [int(part) for part in value.split(":")]
             if len(parts) == 2:
@@ -45,7 +44,6 @@ class AppointmentService:
 
     @classmethod
     def _doctor_is_available(cls, doctor, appointment_date) -> bool:
-        """Return true only when the requested instant falls inside a weekly slot."""
         weekday = appointment_date.weekday()
         requested_time = appointment_date.timetz().replace(tzinfo=None)
         for slot in doctor.availabilities:
@@ -63,15 +61,13 @@ class AppointmentService:
             patient = await self.patient_repo.create({"user_id": current_user.id})
 
         doctor = await self.doctor_repo.get_by_id(data.doctor_id)
-        if not doctor or not doctor.is_active:
-            raise NotFoundException("Target doctor profile does not exist or is inactive.")
+        if not doctor or not doctor.is_active or not doctor.is_verified:
+            raise NotFoundException("Target doctor profile does not exist or is not verified.")
 
-        if data.appointment_date <= __import__("datetime").datetime.now(data.appointment_date.tzinfo):
+        if data.appointment_date <= datetime.now(data.appointment_date.tzinfo):
             raise BadRequestException("Appointment must be scheduled for a future date and time.")
-
         if not doctor.availabilities:
             raise ConflictException("Doctor has not configured any availability slots.")
-
         if not self._doctor_is_available(doctor, data.appointment_date):
             raise ConflictException("Doctor is not available at the requested date and time.")
 
@@ -93,7 +89,6 @@ class AppointmentService:
 
         refetched = await self.appointment_repo.get_with_details(appointment.id)
         response_data = AppointmentResponse.model_validate(refetched)
-
         send_appointment_confirmation_email_task.delay(
             recipient_email=current_user.email,
             patient_name=current_user.full_name,
@@ -119,10 +114,9 @@ class AppointmentService:
         doctor = await self.doctor_repo.get_by_user_id(current_user.id)
         is_assigned_doctor = doctor and doctor.id == appointment.doctor_id
         is_patient = appointment.patient.user_id == current_user.id
-        is_admin = current_user.is_superuser or any(r.name == "ADMIN" for r in current_user.roles)
+        is_admin = current_user.is_superuser or any(r.name.upper() == "ADMIN" for r in current_user.roles)
         if not (is_assigned_doctor or is_patient or is_admin):
             raise ForbiddenException("Permission denied to update this appointment.")
-
         if is_patient and not (is_assigned_doctor or is_admin) and data.status != AppointmentStatus.CANCELLED:
             raise ForbiddenException("Patients are only permitted to cancel their appointments.")
 

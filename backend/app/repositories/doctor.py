@@ -43,12 +43,14 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
         skip: int = 0,
         limit: int = 50
     ) -> List[DoctorProfile]:
-        """Return only active and verified doctors that patients can book."""
+        """Return only active and administrator-verified doctors."""
         stmt = (
             select(DoctorProfile)
             .join(DoctorProfile.user)
             .where(
                 DoctorProfile.is_active == True,
+                DoctorProfile.is_verified == True,
+                User.is_active == True,
                 User.is_verified == True,
             )
         )

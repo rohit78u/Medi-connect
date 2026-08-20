@@ -32,6 +32,12 @@ async def setup_test_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
+@pytest.fixture
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with TestingSessionLocal() as session:
+        yield session
+
+
 async def override_get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with TestingSessionLocal() as session:
         yield session

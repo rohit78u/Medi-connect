@@ -1,9 +1,15 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from app.models.doctor import DoctorProfile
 
 
 @pytest.mark.asyncio
-async def test_appointment_booking_and_double_booking_prevention(async_client: AsyncClient):
+async def test_appointment_booking_and_double_booking_prevention(
+    async_client: AsyncClient,
+    db_session,
+):
     """Test scheduling against a configured weekly availability slot and conflict prevention."""
     await async_client.post("/api/v1/auth/register", json={
         "email": "cardio_doc@mediconnect.ai",
@@ -42,6 +48,12 @@ async def test_appointment_booking_and_double_booking_prevention(async_client: A
     )
     assert doc_prof_res.status_code == 201
     doctor_id = doc_prof_res.json()["data"]["id"]
+
+    # Simulate the completed admin verification step before booking.
+    doctor = await db_session.get(DoctorProfile, doctor_id)
+    assert doctor is not None
+    doctor.is_verified = True
+    await db_session.commit()
 
     # 2026-10-10 is Saturday (5). Configure a 09:00-17:00 recurring slot.
     availability_res = await async_client.post(

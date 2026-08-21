@@ -27,7 +27,7 @@ class DoctorService:
         data: DoctorCreate
     ) -> DoctorResponse:
         """
-        Create doctor clinical profile.
+        Create clinical doctor profile.
         """
         existing = await self.doctor_repo.get_by_user_id(user.id)
         if existing:
@@ -50,7 +50,7 @@ class DoctorService:
             "bio": data.bio
         }
 
-        profile = await self.doctor_repo.create(profile_data)
+        await self.doctor_repo.create(profile_data)
         await self.db.commit()
 
         refetched = await self.doctor_repo.get_by_user_id(user.id)

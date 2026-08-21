@@ -1,10 +1,9 @@
-import uuid
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.user import User, Role, UserRole
+from app.models.user import User, Role
 from app.models.refresh_token import RefreshToken
 from app.repositories.base import BaseRepository
 
@@ -57,8 +56,8 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             select(RefreshToken)
             .where(
                 RefreshToken.token == token_hash,
-                RefreshToken.is_revoked == False,
-                RefreshToken.is_active == True
+                RefreshToken.is_revoked.is_(False),
+                RefreshToken.is_active.is_(True)
             )
             .options(selectinload(RefreshToken.user))
         )

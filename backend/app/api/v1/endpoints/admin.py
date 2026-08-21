@@ -1,10 +1,10 @@
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, require_roles
+from app.core.dependencies import require_roles
 from app.db.session import get_async_db
 from app.models.appointment import Appointment
 from app.models.doctor import DoctorProfile

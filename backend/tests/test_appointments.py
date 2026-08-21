@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from httpx import AsyncClient
 
@@ -49,7 +51,7 @@ async def test_appointment_booking_and_double_booking_prevention(
     doctor_id = doc_prof_res.json()["data"]["id"]
 
     # Simulate the completed admin verification step before booking.
-    doctor = await db_session.get(DoctorProfile, doctor_id)
+    doctor = await db_session.get(DoctorProfile, uuid.UUID(doctor_id))
     assert doctor is not None
     doctor.is_verified = True
     await db_session.commit()

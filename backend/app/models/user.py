@@ -1,9 +1,9 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import Boolean, ForeignKey, String, Table, Column
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel, Base, UUIDMixin, TimestampMixin
+from app.models.base import BaseModel, Base, TimestampMixin
 
 
 class UserRole(Base, TimestampMixin):

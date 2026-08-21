@@ -1,9 +1,7 @@
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.exceptions.custom_exceptions import NotFoundException
 from app.models.user import User
 from app.repositories.patient import PatientRepository
-from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
+from app.schemas.patient import PatientResponse, PatientUpdate
 
 
 class PatientService:
@@ -39,7 +37,7 @@ class PatientService:
             profile = await self.patient_repo.create({"user_id": user.id})
 
         fields = update_data.model_dump(exclude_unset=True)
-        updated_profile = await self.patient_repo.update(profile, fields)
+        await self.patient_repo.update(profile, fields)
         await self.db.commit()
 
         refetched = await self.patient_repo.get_by_user_id(user.id)

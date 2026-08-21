@@ -21,7 +21,7 @@ class PatientRepository(BaseRepository[PatientProfile]):
         """
         stmt = (
             select(PatientProfile)
-            .where(PatientProfile.user_id == user_id, PatientProfile.is_active == True)
+            .where(PatientProfile.user_id == user_id, PatientProfile.is_active.is_(True))
             .options(selectinload(PatientProfile.user))
         )
         result = await self.db.execute(stmt)

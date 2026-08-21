@@ -64,7 +64,7 @@ async def list_my_lab_reports(
     patient = await _patient_profile(db, current_user.id)
     result = await db.execute(
         select(LabReport)
-        .where(LabReport.patient_id == patient.id, LabReport.is_active == True)
+        .where(LabReport.patient_id == patient.id, LabReport.is_active.is_(True))
         .order_by(LabReport.report_date.desc())
     )
     return list(result.scalars().all())

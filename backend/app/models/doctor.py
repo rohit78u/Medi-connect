@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, Time
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel

@@ -4,56 +4,44 @@ import { showToast, renderErrorState } from '../components.js';
 export function renderTriageView() {
   return `
     <div class="page-header">
+      <span class="eyebrow">AI CLINICAL ASSISTANT</span>
       <h1 class="page-title">AI Clinical Assistant</h1>
       <p class="page-subtitle">Powered by Google Gemini API & LangChain Medical Engine</p>
     </div>
 
     <div class="grid-2">
-      <!-- Symptom Analysis Form -->
-      <div class="card">
-        <h3 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-          <span>🩺</span> Symptom Analysis & Triage
-        </h3>
+      <div class="card triage-card">
+        <h3><span>♧</span> Symptom Analysis & Triage</h3>
         <form id="triage-form">
           <div class="form-group">
             <label class="form-label">Describe Symptoms</label>
             <textarea id="symptom-text" class="form-control" rows="4" placeholder="e.g. Persistent dry cough, mild fever 100F, chest tightness for 3 days..." required></textarea>
           </div>
-          <div class="grid-2">
+          <div class="grid-2" style="gap:14px;">
             <div class="form-group">
               <label class="form-label">Patient Age</label>
               <input type="number" id="patient-age" class="form-control" placeholder="35" min="0" max="120">
             </div>
             <div class="form-group">
               <label class="form-label">Gender</label>
-              <select id="patient-gender" class="form-control">
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
+              <select id="patient-gender" class="form-control"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" id="btn-analyze" style="width:100%;">
-            <span>✨ Run AI Clinical Analysis</span>
-          </button>
+          <button type="submit" class="btn btn-primary" id="btn-analyze"><span>✦ Run AI Clinical Analysis</span></button>
         </form>
       </div>
 
-      <!-- Triage Results Card -->
-      <div class="card" id="triage-results-card">
-        <h3 style="margin-bottom:1rem;">Assessment Output</h3>
-        <div id="triage-output-content" class="empty-state" style="padding:2rem;">
-          <div class="state-icon">🤖</div>
+      <div class="card assessment-card" id="triage-results-card">
+        <h3>Assessment Output</h3>
+        <div id="triage-output-content" class="empty-state" style="min-height:200px;border:1px solid var(--border);">
+          <div class="state-icon">▣</div>
           <p>Submit symptoms on the left to generate an AI clinical triage report.</p>
         </div>
       </div>
     </div>
 
-    <!-- Medical Document Parser Section -->
-    <div class="card" style="margin-top:2rem;">
-      <h3 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
-        <span>📄</span> Medical Lab Report Parser
-      </h3>
+    <div class="card report-card">
+      <h3><span>▤</span> Medical Lab Report Parser</h3>
       <form id="report-parser-form">
         <div class="form-group">
           <label class="form-label">Paste Unstructured Lab Report Text</label>
@@ -61,8 +49,7 @@ export function renderTriageView() {
         </div>
         <button type="submit" class="btn btn-secondary" id="btn-parse-report">Parse Lab Metrics</button>
       </form>
-
-      <div id="report-output-content" style="margin-top:1.5rem;"></div>
+      <div id="report-output-content"></div>
     </div>
   `;
 }
@@ -73,80 +60,32 @@ export function initTriageListeners() {
   const resultsContent = document.getElementById('triage-output-content');
   const reportOutputContent = document.getElementById('report-output-content');
 
-  if (triageForm) {
-    triageForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('btn-analyze');
-      btn.disabled = true;
-      btn.innerHTML = `<span>⏳ Analyzing with Gemini AI...</span>`;
+  triageForm?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-analyze');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Analyzing with Gemini AI...</span>';
+    const symptoms = document.getElementById('symptom-text').value;
+    const patient_age = parseInt(document.getElementById('patient-age').value) || 30;
+    const gender = document.getElementById('patient-gender').value;
+    try {
+      const payload = await api.post('/ai/analyze-symptoms', { symptoms, patient_age, gender });
+      const res = payload.data;
+      resultsContent.className = '';
+      resultsContent.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px"><span class="triage-badge ${res.triage_level}">${res.triage_level} PRIORITY</span><strong style="color:var(--brand);font-size:13px">${res.recommended_specialization}</strong></div><div style="margin-bottom:16px"><h4 style="font-size:12px;color:var(--text-secondary);margin-bottom:5px">Clinical Summary</h4><p style="font-size:13px">${res.clinical_summary}</p></div><div style="margin-bottom:16px"><h4 style="font-size:12px;color:var(--text-secondary);margin-bottom:5px">Possible Conditions Identified</h4><ul style="padding-left:18px;font-size:13px">${res.possible_conditions.map(c => `<li style="margin-bottom:4px">${c}</li>`).join('')}</ul></div><div style="padding:11px;background:var(--danger-soft);border:1px solid #f4cccc;border-radius:8px;font-size:11px;color:var(--danger)">⚠ ${res.disclaimer}</div>`;
+      showToast('AI Clinical Triage Analysis Completed','success');
+    } catch (err) { resultsContent.innerHTML = renderErrorState(err.message); showToast(err.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<span>✦ Run AI Clinical Analysis</span>'; }
+  });
 
-      const symptoms = document.getElementById('symptom-text').value;
-      const patient_age = parseInt(document.getElementById('patient-age').value) || 30;
-      const gender = document.getElementById('patient-gender').value;
-
-      try {
-        const payload = await api.post('/ai/analyze-symptoms', { symptoms, patient_age, gender });
-        const res = payload.data;
-
-        resultsContent.className = '';
-        resultsContent.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <span class="triage-badge ${res.triage_level}">${res.triage_level} PRIORITY</span>
-            <span style="font-weight:600; color:var(--accent-cyan);">${res.recommended_specialization}</span>
-          </div>
-
-          <div style="margin-bottom:1rem;">
-            <h4 style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:0.35rem;">Clinical Summary</h4>
-            <p style="font-size:0.95rem;">${res.clinical_summary}</p>
-          </div>
-
-          <div style="margin-bottom:1rem;">
-            <h4 style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:0.35rem;">Possible Conditions Identified</h4>
-            <ul style="padding-left:1.25rem;">
-              ${res.possible_conditions.map(c => `<li style="margin-bottom:0.25rem;">${c}</li>`).join('')}
-            </ul>
-          </div>
-
-          <div style="padding:0.75rem; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); font-size:0.8rem; color:var(--accent-rose);">
-            ⚠️ ${res.disclaimer}
-          </div>
-        `;
-        showToast('AI Clinical Triage Analysis Completed', 'success');
-      } catch (err) {
-        resultsContent.innerHTML = renderErrorState(err.message);
-        showToast(err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<span>✨ Run AI Clinical Analysis</span>`;
-      }
-    });
-  }
-
-  if (reportForm) {
-    reportForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const report_text = document.getElementById('report-text').value;
-
-      try {
-        const payload = await api.post('/ai/parse-medical-report', { report_text });
-        const res = payload.data;
-
-        reportOutputContent.innerHTML = `
-          <div style="padding:1rem; background:var(--bg-secondary); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-            <h4 style="margin-bottom:0.5rem;">Parsed ${res.report_type} Highlights</h4>
-            <ul style="padding-left:1.25rem; margin-bottom:1rem;">
-              ${res.diagnosis_highlights.map(h => `<li>${h}</li>`).join('')}
-            </ul>
-            <h5 style="margin-bottom:0.35rem; color:var(--accent-emerald);">Recommended Actions</h5>
-            <ul style="padding-left:1.25rem;">
-              ${res.recommended_actions.map(a => `<li>${a}</li>`).join('')}
-            </ul>
-          </div>
-        `;
-        showToast('Report parsed successfully', 'success');
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    });
-  }
+  reportForm?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const report_text = document.getElementById('report-text').value;
+    try {
+      const payload = await api.post('/ai/parse-medical-report',{report_text});
+      const res = payload.data;
+      reportOutputContent.innerHTML = `<div class="report-output"><h4 style="margin-bottom:8px">Parsed ${res.report_type} Highlights</h4><ul style="padding-left:18px;margin-bottom:15px;font-size:13px">${res.diagnosis_highlights.map(h=>`<li>${h}</li>`).join('')}</ul><h5 style="margin-bottom:5px;color:var(--success)">Recommended Actions</h5><ul style="padding-left:18px;font-size:13px">${res.recommended_actions.map(a=>`<li>${a}</li>`).join('')}</ul></div>`;
+      showToast('Report parsed successfully','success');
+    } catch(err) { showToast(err.message,'error'); }
+  });
 }

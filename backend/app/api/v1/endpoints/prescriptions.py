@@ -64,7 +64,7 @@ async def list_my_prescriptions(
     patient = await _patient_profile(db, current_user.id)
     result = await db.execute(
         select(Prescription)
-        .where(Prescription.patient_id == patient.id, Prescription.is_active == True)
+        .where(Prescription.patient_id == patient.id, Prescription.is_active.is_(True))
         .order_by(Prescription.prescribed_date.desc())
     )
     return list(result.scalars().all())

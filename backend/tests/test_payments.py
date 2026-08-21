@@ -1,15 +1,21 @@
 import hashlib
 import hmac
+import uuid
 
 import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.models.doctor import DoctorProfile
 from app.payments.razorpay_service import razorpay_service
 
 
 @pytest.mark.asyncio
-async def test_payment_order_creation_and_verification(async_client: AsyncClient, monkeypatch):
+async def test_payment_order_creation_and_verification(
+    async_client: AsyncClient,
+    monkeypatch,
+    db_session,
+):
     """Test secure payment flow without calling the external Razorpay API in CI."""
     await async_client.post("/api/v1/auth/register", json={
         "email": "pay_doc@mediconnect.ai",
@@ -29,6 +35,11 @@ async def test_payment_order_creation_and_verification(async_client: AsyncClient
         headers={"Authorization": f"Bearer {doc_token}"}
     )
     doctor_id = doc_prof.json()["data"]["id"]
+
+    doctor = await db_session.get(DoctorProfile, uuid.UUID(doctor_id))
+    assert doctor is not None
+    doctor.is_verified = True
+    await db_session.commit()
 
     # 2026-11-15 is Sunday (6).
     await async_client.post(

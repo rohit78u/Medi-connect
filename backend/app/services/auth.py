@@ -15,7 +15,6 @@ from app.exceptions.custom_exceptions import (
     ConflictException,
     UnauthorizedException
 )
-from app.models.user import User
 from app.repositories.user import RefreshTokenRepository, UserRepository
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from app.schemas.user import UserResponse

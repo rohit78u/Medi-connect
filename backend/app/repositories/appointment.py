@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +22,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         """
         stmt = (
             select(Appointment)
-            .where(Appointment.id == id, Appointment.is_active == True)
+            .where(Appointment.id == id, Appointment.is_active.is_(True))
             .options(
                 selectinload(Appointment.patient),
                 selectinload(Appointment.doctor)
@@ -45,7 +45,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
             Appointment.doctor_id == doctor_id,
             Appointment.appointment_date == appointment_date,
             Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
-            Appointment.is_active == True
+            Appointment.is_active.is_(True)
         )
         if exclude_appointment_id:
             stmt = stmt.where(Appointment.id != exclude_appointment_id)
@@ -64,7 +64,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         """
         stmt = (
             select(Appointment)
-            .where(Appointment.patient_id == patient_id, Appointment.is_active == True)
+            .where(Appointment.patient_id == patient_id, Appointment.is_active.is_(True))
             .options(
                 selectinload(Appointment.patient),
                 selectinload(Appointment.doctor)
@@ -87,7 +87,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         """
         stmt = (
             select(Appointment)
-            .where(Appointment.doctor_id == doctor_id, Appointment.is_active == True)
+            .where(Appointment.doctor_id == doctor_id, Appointment.is_active.is_(True))
             .options(
                 selectinload(Appointment.patient),
                 selectinload(Appointment.doctor)

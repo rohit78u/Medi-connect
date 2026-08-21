@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions.custom_exceptions import NotFoundException
 from app.models.user import User

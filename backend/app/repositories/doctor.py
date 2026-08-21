@@ -51,7 +51,6 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
                 DoctorProfile.is_active.is_(True),
                 DoctorProfile.is_verified.is_(True),
                 User.is_active.is_(True),
-                User.is_verified.is_(True),
             )
         )
         if specialization_name:

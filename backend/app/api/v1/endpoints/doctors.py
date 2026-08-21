@@ -12,6 +12,7 @@ from app.schemas.doctor import (
     DoctorResponse
 )
 from app.schemas.response import APIResponse
+from app.exceptions.custom_exceptions import NotFoundException
 from app.services.doctor import DoctorService
 
 router = APIRouter(prefix="/doctors", tags=["Doctors Domain"])
@@ -28,15 +29,35 @@ async def create_doctor_profile(
     current_user: User = Depends(require_roles(["DOCTOR", "ADMIN"])),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """
-    Creates a clinical doctor profile for a user with DOCTOR or ADMIN role.
-    """
+    """Creates a clinical doctor profile for the authenticated doctor/admin user."""
     service = DoctorService(db)
     profile = await service.create_doctor_profile(current_user, data)
     return APIResponse(
         success=True,
         message="Doctor profile created successfully",
         data=profile
+    )
+
+
+@router.get(
+    "/me",
+    response_model=APIResponse[DoctorResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get authenticated doctor's clinical profile"
+)
+async def get_my_doctor_profile(
+    current_user: User = Depends(require_roles(["DOCTOR", "ADMIN"])),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Returns the doctor profile linked to the authenticated user."""
+    service = DoctorService(db)
+    profile = await service.doctor_repo.get_by_user_id(current_user.id)
+    if not profile:
+        raise NotFoundException("Doctor profile not found for current user.")
+    return APIResponse(
+        success=True,
+        message="Doctor profile retrieved successfully",
+        data=DoctorResponse.model_validate(profile)
     )
 
 
@@ -52,9 +73,7 @@ async def search_doctors(
     limit: int = Query(default=50, ge=1, le=100),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """
-    Public search endpoint for patients to find available doctors.
-    """
+    """Public search endpoint for patients to find available doctors."""
     service = DoctorService(db)
     doctors = await service.search_doctors(specialization=specialization, skip=skip, limit=limit)
     return APIResponse(
@@ -75,9 +94,7 @@ async def add_doctor_availability(
     current_user: User = Depends(require_roles(["DOCTOR", "ADMIN"])),
     db: AsyncSession = Depends(get_async_db)
 ):
-    """
-    Adds a weekly recurring schedule slot for the authenticated doctor.
-    """
+    """Adds a weekly recurring schedule slot for the authenticated doctor."""
     service = DoctorService(db)
     slot = await service.add_availability_slot(current_user, data)
     return APIResponse(

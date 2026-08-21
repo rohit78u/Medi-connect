@@ -76,7 +76,7 @@ async def list_my_documents(
     patient = await _patient_profile(db, current_user.id)
     result = await db.execute(
         select(MedicalDocument)
-        .where(MedicalDocument.patient_id == patient.id, MedicalDocument.is_active == True)
+        .where(MedicalDocument.patient_id == patient.id, MedicalDocument.is_active.is_(True))
         .order_by(MedicalDocument.uploaded_at.desc())
     )
     return list(result.scalars().all())

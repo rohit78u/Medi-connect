@@ -1,8 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.exceptions.custom_exceptions import NotFoundException
 from app.models.user import User
 from app.repositories.patient import PatientRepository
-from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
+from app.schemas.patient import PatientResponse, PatientUpdate
 
 
 class PatientService:

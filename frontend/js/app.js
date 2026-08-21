@@ -7,6 +7,7 @@ import { renderDoctorSearchView, initDoctorSearchListeners } from './views/docto
 import { renderAppointmentsView, initAppointmentsListeners } from './views/appointmentsView.js';
 import { renderPaymentModal, initPaymentListeners } from './views/paymentModal.js';
 import { renderDashboardView, initDashboardListeners } from './views/dashboardView.js';
+import { renderDoctorDashboardView, initDoctorDashboardListeners } from './views/doctorDashboardView.js';
 
 let wsSocket = null;
 
@@ -54,10 +55,17 @@ function renderCurrentView() {
       break;
     case 'dashboard':
       container.innerHTML = '<section class="view"><div class="card">Loading dashboard…</div></section>';
-      renderDashboardView().then(html => {
-        container.innerHTML = html;
-        initDashboardListeners();
-      });
+      if (state.getUserRole() === 'DOCTOR') {
+        renderDoctorDashboardView().then(html => {
+          container.innerHTML = html;
+          initDoctorDashboardListeners();
+        });
+      } else {
+        renderDashboardView().then(html => {
+          container.innerHTML = html;
+          initDashboardListeners();
+        });
+      }
       break;
     default:
       container.innerHTML = renderTriageView();

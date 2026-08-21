@@ -43,6 +43,7 @@ class DoctorResponse(BaseModel):
     consultation_fee: float
     years_of_experience: int
     bio: Optional[str] = None
+    is_verified: bool
     user: UserResponse
     specialization: Optional[SpecializationResponse] = None
     availabilities: List[AvailabilitySlotResponse] = []

@@ -57,8 +57,8 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
             select(RefreshToken)
             .where(
                 RefreshToken.token == token_hash,
-                RefreshToken.is_revoked == False,
-                RefreshToken.is_active == True
+                RefreshToken.is_revoked.is_(False),
+                RefreshToken.is_active.is_(True)
             )
             .options(selectinload(RefreshToken.user))
         )

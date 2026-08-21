@@ -90,20 +90,20 @@ async def get_my_medical_records(
         patient = await _patient_for_user(db, current_user.id)
         result = await db.execute(
             select(MedicalRecord)
-            .where(MedicalRecord.patient_id == patient.id, MedicalRecord.is_active == True)
+            .where(MedicalRecord.patient_id == patient.id, MedicalRecord.is_active.is_(True))
             .order_by(MedicalRecord.record_date.desc())
         )
     elif "DOCTOR" in roles:
         doctor = await _doctor_for_user(db, current_user.id)
         result = await db.execute(
             select(MedicalRecord)
-            .where(MedicalRecord.doctor_id == doctor.id, MedicalRecord.is_active == True)
+            .where(MedicalRecord.doctor_id == doctor.id, MedicalRecord.is_active.is_(True))
             .order_by(MedicalRecord.record_date.desc())
         )
     elif "ADMIN" in roles or current_user.is_superuser:
         result = await db.execute(
             select(MedicalRecord)
-            .where(MedicalRecord.is_active == True)
+            .where(MedicalRecord.is_active.is_(True))
             .order_by(MedicalRecord.record_date.desc())
         )
     else:

@@ -27,7 +27,7 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
     async def get_by_user_id(self, user_id: uuid.UUID) -> Optional[DoctorProfile]:
         stmt = (
             select(DoctorProfile)
-            .where(DoctorProfile.user_id == user_id, DoctorProfile.is_active == True)
+            .where(DoctorProfile.user_id == user_id, DoctorProfile.is_active.is_(True))
             .options(
                 selectinload(DoctorProfile.user),
                 selectinload(DoctorProfile.specialization),
@@ -48,10 +48,10 @@ class DoctorRepository(BaseRepository[DoctorProfile]):
             select(DoctorProfile)
             .join(DoctorProfile.user)
             .where(
-                DoctorProfile.is_active == True,
-                DoctorProfile.is_verified == True,
-                User.is_active == True,
-                User.is_verified == True,
+                DoctorProfile.is_active.is_(True),
+                DoctorProfile.is_verified.is_(True),
+                User.is_active.is_(True),
+                User.is_verified.is_(True),
             )
         )
         if specialization_name:

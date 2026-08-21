@@ -3,16 +3,42 @@ import { state } from '../state.js';
 import { showToast } from '../components.js';
 
 function esc(value = '') {
-  return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  return String(value).replace(/[&<>'\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
 }
 
 function card(title, value, subtitle = '') {
   return `<div class="card"><div>${esc(title)}</div><div>${esc(value)}</div><div>${esc(subtitle)}</div></div>`;
 }
 
-function appointmentRow(a) {
-  const date = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString() : 'Scheduled time unavailable';
-  return `<div class="card" style="margin-top:.75rem"><div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap"><strong>${esc(a.doctor_name || a.patient_name || 'Appointment')}</strong><span class="role-badge">${esc(a.status || 'PENDING')}</span></div><div style="margin-top:.4rem;color:var(--text-muted)">${esc(date)}</div><div style="margin-top:.35rem">${esc(a.reason || 'Clinical consultation')}</div></div>`;
+function appointmentStatusClass(status = '') {
+  return String(status).toLowerCase();
+}
+
+function appointmentRow(a, { doctorView = false } = {}) {
+  const dateValue = a.appointment_date || a.scheduled_at;
+  const date = dateValue ? new Date(dateValue).toLocaleString() : 'Scheduled time unavailable';
+  const personName = doctorView
+    ? (a.patient?.user?.full_name || a.patient_name || 'Patient')
+    : (a.doctor?.user?.full_name || a.doctor_name || 'Doctor');
+  const reason = a.reason_for_visit || a.reason || 'Clinical consultation';
+  const status = a.status || 'PENDING';
+
+  const actions = doctorView && status === 'PENDING'
+    ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem">
+        <button class="btn btn-primary doctor-appointment-action" data-appointment-id="${esc(a.id)}" data-status="CONFIRMED">Approve</button>
+        <button class="btn btn-danger doctor-appointment-action" data-appointment-id="${esc(a.id)}" data-status="CANCELLED">Reject</button>
+      </div>`
+    : '';
+
+  return `<div class="card" style="margin-top:.75rem">
+    <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+      <strong>${esc(personName)}</strong>
+      <span class="role-badge ${appointmentStatusClass(status)}">${esc(status)}</span>
+    </div>
+    <div style="margin-top:.4rem;color:var(--text-muted)">${esc(date)}</div>
+    <div style="margin-top:.35rem">${esc(reason)}</div>
+    ${actions}
+  </div>`;
 }
 
 async function patientDashboard() {
@@ -71,7 +97,7 @@ async function patientDashboard() {
         <aside class="care-timeline">
           <h2>Care timeline</h2>
           <p style="font-size:13px;font-weight:700;margin-bottom:14px;">Upcoming appointments</p>
-          ${upcoming.length ? upcoming.map(appointmentRow).join('') : `<div class="care-empty"><div class="state-icon">▣</div><p>No upcoming appointments. Browse the doctor directory to book your first visit.</p></div>`}
+          ${upcoming.length ? upcoming.map(a => appointmentRow(a)).join('') : `<div class="care-empty"><div class="state-icon">▣</div><p>No upcoming appointments. Browse the doctor directory to book your first visit.</p></div>`}
         </aside>
       </div>
     </div>
@@ -81,8 +107,46 @@ async function patientDashboard() {
 async function doctorDashboard() {
   const result = await api.get('/appointments/doctor-schedule?limit=50');
   const appointments = result.data || [];
+  const pending = appointments.filter(a => a.status === 'PENDING');
   const active = appointments.filter(a => !['COMPLETED','CANCELLED'].includes(a.status));
-  return `<section class="view dashboard-view"><div class="page-header"><span class="eyebrow">CLINICIAN PORTAL</span><h1 class="page-title">Doctor Dashboard</h1><p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p></div><div class="grid-3">${card('Total appointments', appointments.length, 'Loaded clinical schedule')}${card('Active', active.length, 'Pending or confirmed')}${card('Completed', appointments.filter(a => a.status === 'COMPLETED').length, 'Completed consultations')}</div><div class="card" style="margin-top:22px"><h2>Weekly availability</h2><p style="margin:8px 0 18px">Add recurring availability slots. These slots are enforced by the booking API.</p><form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px"><label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label><label>Start<input class="form-control" name="start_time" type="time" required></label><label>End<input class="form-control" name="end_time" type="time" required></label><div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div></form></div><div style="margin-top:28px"><h2>Schedule</h2>${appointments.length ? appointments.map(appointmentRow).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}</div></section>`;
+  const confirmed = appointments.filter(a => a.status === 'CONFIRMED');
+  const completed = appointments.filter(a => a.status === 'COMPLETED');
+
+  return `<section class="view dashboard-view">
+    <div class="page-header">
+      <span class="eyebrow">CLINICIAN PORTAL</span>
+      <h1 class="page-title">Doctor Dashboard</h1>
+      <p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p>
+    </div>
+
+    <div class="grid-3">
+      ${card('Total appointments', appointments.length, 'Loaded clinical schedule')}
+      ${card('Pending requests', pending.length, 'Need your approval')}
+      ${card('Confirmed', confirmed.length, 'Upcoming confirmed visits')}
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h2>Appointment Requests</h2>
+      <p style="margin:8px 0 18px">Review patient requests and approve or reject them.</p>
+      ${pending.length ? pending.map(a => appointmentRow(a, { doctorView: true })).join('') : '<div style="color:var(--text-muted)">No pending appointment requests.</div>'}
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h2>Weekly availability</h2>
+      <p style="margin:8px 0 18px">Add recurring availability slots. These slots are enforced by the booking API.</p>
+      <form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+        <label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label>
+        <label>Start<input class="form-control" name="start_time" type="time" required></label>
+        <label>End<input class="form-control" name="end_time" type="time" required></label>
+        <div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div>
+      </form>
+    </div>
+
+    <div style="margin-top:28px">
+      <h2>Clinical Schedule</h2>
+      ${appointments.length ? appointments.map(a => appointmentRow(a, { doctorView: true })).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}
+    </div>
+  </section>`;
 }
 
 function adminDoctorRow(doctor) {
@@ -121,12 +185,31 @@ export function initDashboardListeners() {
     try { await api.put('/patients/me', Object.fromEntries(form.entries())); showToast('Patient profile saved.', 'success'); }
     catch (error) { showToast(error.message || 'Profile update failed.', 'error'); }
   });
+
   document.getElementById('availability-form')?.addEventListener('submit', async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try { await api.post('/doctors/availability', {day_of_week:Number(form.get('day_of_week')),start_time:form.get('start_time'),end_time:form.get('end_time')}); showToast('Availability slot added.','success'); state.setView('dashboard'); }
     catch (error) { showToast(error.message || 'Could not add availability.','error'); }
   });
+
+  document.querySelectorAll('.doctor-appointment-action').forEach(button => button.addEventListener('click', async () => {
+    const appointmentId = button.dataset.appointmentId;
+    const status = button.dataset.status;
+    const actionText = status === 'CONFIRMED' ? 'approve' : 'reject';
+    if (!window.confirm(`Are you sure you want to ${actionText} this appointment?`)) return;
+
+    button.disabled = true;
+    try {
+      await api.patch(`/appointments/${appointmentId}/status`, { status });
+      showToast(status === 'CONFIRMED' ? 'Appointment approved successfully.' : 'Appointment rejected.', status === 'CONFIRMED' ? 'success' : 'info');
+      state.setView('dashboard');
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message || `Could not ${actionText} appointment.`, 'error');
+    }
+  }));
+
   document.querySelectorAll('.admin-verify-doctor').forEach(button => button.addEventListener('click', async () => {
     try { await api.post(`/admin/doctors/${button.dataset.doctorId}/verify`,{}); showToast('Doctor approved.','success'); state.setView('dashboard'); }
     catch (error) { showToast(error.message || 'Doctor approval failed.','error'); }

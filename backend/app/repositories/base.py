@@ -1,7 +1,7 @@
 import uuid
-from typing import Any, Generic, List, Optional, Type, TypeVar
 from datetime import datetime, timezone
-from sqlalchemy import delete, func, select, update
+from typing import Any, Generic, List, Optional, Type, TypeVar
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.base import Base
 
@@ -26,7 +26,7 @@ class BaseRepository(Generic[ModelType]):
         """
         query = select(self.model).where(self.model.id == id)
         if not include_inactive and hasattr(self.model, "is_active"):
-            query = query.where(self.model.is_active == True)
+            query = query.where(self.model.is_active.is_(True))
 
         result = await self.db.execute(query)
         return result.scalars().first()
@@ -42,7 +42,7 @@ class BaseRepository(Generic[ModelType]):
         """
         query = select(self.model)
         if not include_inactive and hasattr(self.model, "is_active"):
-            query = query.where(self.model.is_active == True)
+            query = query.where(self.model.is_active.is_(True))
 
         query = query.offset(skip).limit(limit)
         result = await self.db.execute(query)
@@ -54,7 +54,7 @@ class BaseRepository(Generic[ModelType]):
         """
         query = select(func.count()).select_from(self.model)
         if not include_inactive and hasattr(self.model, "is_active"):
-            query = query.where(self.model.is_active == True)
+            query = query.where(self.model.is_active.is_(True))
 
         result = await self.db.execute(query)
         return result.scalar() or 0

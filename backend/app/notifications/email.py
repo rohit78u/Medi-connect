@@ -41,5 +41,5 @@ class EmailNotificationService:
             f"Notes: {clinical_notes or 'N/A'}\n\n"
             f"MediConnect AI Healthcare Team"
         )
-        logger.info(f"[EMAIL MOCK SENT] To: {recipient_email} | Subject: {subject}")
+        logger.info(f"[EMAIL MOCK SENT] To: {recipient_email} | Subject: {subject} | Body Snippet: {body[:60]}...")
         return True

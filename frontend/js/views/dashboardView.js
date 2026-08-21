@@ -78,11 +78,37 @@ async function patientDashboard() {
   </section>`;
 }
 
+function doctorProfileSetup() {
+  return `<section class="view dashboard-view">
+    <div class="page-header">
+      <span class="eyebrow">CLINICIAN PORTAL</span>
+      <h1 class="page-title">Complete your doctor profile</h1>
+      <p class="page-subtitle">Your doctor account is signed in, but a clinical profile has not been created yet. Add these details to unlock your schedule and availability controls.</p>
+    </div>
+    <div class="card" style="max-width:820px;margin-top:24px">
+      <form id="doctor-profile-form" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+        <label>Specialization<input class="form-control" name="specialization_name" placeholder="e.g. Cardiology" required></label>
+        <label>License number<input class="form-control" name="license_number" placeholder="e.g. MC-2026-1001" required></label>
+        <label>Consultation fee (₹)<input class="form-control" name="consultation_fee" type="number" min="0" step="0.01" value="500" required></label>
+        <label>Years of experience<input class="form-control" name="years_of_experience" type="number" min="0" step="1" value="1" required></label>
+        <label style="grid-column:1/-1">Professional bio<textarea class="form-control" name="bio" rows="4" placeholder="Briefly describe your clinical experience and focus areas"></textarea></label>
+        <div style="grid-column:1/-1;display:flex;justify-content:flex-end"><button class="btn btn-primary" type="submit">Create Doctor Profile</button></div>
+      </form>
+      <p style="margin:14px 0 0;color:var(--text-muted);font-size:.9rem">After creating the profile, add your weekly availability. Doctor verification remains controlled by the existing admin workflow.</p>
+    </div>
+  </section>`;
+}
+
 async function doctorDashboard() {
-  const result = await api.get('/appointments/doctor-schedule?limit=50');
-  const appointments = result.data || [];
-  const active = appointments.filter(a => !['COMPLETED','CANCELLED'].includes(a.status));
-  return `<section class="view dashboard-view"><div class="page-header"><span class="eyebrow">CLINICIAN PORTAL</span><h1 class="page-title">Doctor Dashboard</h1><p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p></div><div class="grid-3">${card('Total appointments', appointments.length, 'Loaded clinical schedule')}${card('Active', active.length, 'Pending or confirmed')}${card('Completed', appointments.filter(a => a.status === 'COMPLETED').length, 'Completed consultations')}</div><div class="card" style="margin-top:22px"><h2>Weekly availability</h2><p style="margin:8px 0 18px">Add recurring availability slots. These slots are enforced by the booking API.</p><form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px"><label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label><label>Start<input class="form-control" name="start_time" type="time" required></label><label>End<input class="form-control" name="end_time" type="time" required></label><div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div></form></div><div style="margin-top:28px"><h2>Schedule</h2>${appointments.length ? appointments.map(appointmentRow).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}</div></section>`;
+  try {
+    const result = await api.get('/appointments/doctor-schedule?limit=50');
+    const appointments = result.data || [];
+    const active = appointments.filter(a => !['COMPLETED','CANCELLED'].includes(a.status));
+    return `<section class="view dashboard-view"><div class="page-header"><span class="eyebrow">CLINICIAN PORTAL</span><h1 class="page-title">Doctor Dashboard</h1><p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p></div><div class="grid-3">${card('Total appointments', appointments.length, 'Loaded clinical schedule')}${card('Active', active.length, 'Pending or confirmed')}${card('Completed', appointments.filter(a => a.status === 'COMPLETED').length, 'Completed consultations')}</div><div class="card" style="margin-top:22px"><h2>Weekly availability</h2><p style="margin:8px 0 18px">Add recurring availability slots. Patients can now select only dates and times that fall inside these configured slots.</p><form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px"><label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label><label>Start<input class="form-control" name="start_time" type="time" required></label><label>End<input class="form-control" name="end_time" type="time" required></label><div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div></form></div><div style="margin-top:28px"><h2>Schedule</h2>${appointments.length ? appointments.map(appointmentRow).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}</div></section>`;
+  } catch (error) {
+    if (error.statusCode === 404 && /doctor profile not found/i.test(error.message || '')) return doctorProfileSetup();
+    throw error;
+  }
 }
 
 function adminDoctorRow(doctor) {
@@ -121,10 +147,37 @@ export function initDashboardListeners() {
     try { await api.put('/patients/me', Object.fromEntries(form.entries())); showToast('Patient profile saved.', 'success'); }
     catch (error) { showToast(error.message || 'Profile update failed.', 'error'); }
   });
+
+  document.getElementById('doctor-profile-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      specialization_name: String(form.get('specialization_name') || '').trim(),
+      license_number: String(form.get('license_number') || '').trim(),
+      consultation_fee: Number(form.get('consultation_fee')),
+      years_of_experience: Number(form.get('years_of_experience')),
+      bio: String(form.get('bio') || '').trim() || null,
+    };
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    if (button) { button.disabled = true; button.textContent = 'Creating profile...'; }
+    try {
+      await api.post('/doctors/profile', payload);
+      showToast('Doctor profile created. Add your weekly availability next.', 'success');
+      state.setView('dashboard');
+    } catch (error) {
+      showToast(error.message || 'Doctor profile creation failed.', 'error');
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Create Doctor Profile'; }
+    }
+  });
+
   document.getElementById('availability-form')?.addEventListener('submit', async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    try { await api.post('/doctors/availability', {day_of_week:Number(form.get('day_of_week')),start_time:form.get('start_time'),end_time:form.get('end_time')}); showToast('Availability slot added.','success'); state.setView('dashboard'); }
+    const start = String(form.get('start_time') || '');
+    const end = String(form.get('end_time') || '');
+    if (!start || !end || start >= end) { showToast('End time must be later than start time.','error'); return; }
+    try { await api.post('/doctors/availability', {day_of_week:Number(form.get('day_of_week')),start_time:start,end_time:end}); showToast('Availability slot added.','success'); state.setView('dashboard'); }
     catch (error) { showToast(error.message || 'Could not add availability.','error'); }
   });
   document.querySelectorAll('.admin-verify-doctor').forEach(button => button.addEventListener('click', async () => {

@@ -4,7 +4,7 @@ class AppState {
   constructor() {
     this.user = JSON.parse(localStorage.getItem(CONFIG.USER_KEY)) || null;
     this.token = localStorage.getItem(CONFIG.TOKEN_KEY) || null;
-    this.currentView = 'triage'; // 'triage', 'doctors', 'appointments', 'auth'
+    this.currentView = 'dashboard';
     this.listeners = [];
   }
 

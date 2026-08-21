@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, Time
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -66,6 +66,12 @@ class DoctorProfile(BaseModel):
     bio: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True
+    )
+    is_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        index=True,
     )
 
     # Relationships

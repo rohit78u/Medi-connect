@@ -137,7 +137,7 @@ Report text:
     @staticmethod
     def _symptom_fallback(req: SymptomAnalysisRequest) -> dict[str, Any]:
         symptoms = req.symptoms.lower()
-        emergency_terms = ["chest pain", "severe breathing", "shortness of breath", "unconscious", "severe bleeding"]
+        emergency_terms = ["chest pain", "severe breathing", "shortness of breath", "unconscious", "severe bleeding", "seizure", "one-sided weakness"]
         if any(term in symptoms for term in emergency_terms):
             specialization = "Cardiology" if any(term in symptoms for term in ["chest pain", "shortness of breath"]) else "Emergency Medicine"
             return {
@@ -145,6 +145,14 @@ Report text:
                 "possible_conditions": [],
                 "recommended_specialization": specialization,
                 "clinical_summary": "Potentially serious symptoms detected; seek immediate medical evaluation.",
+            }
+        high_risk_terms = ["104", "103", "high fever", "severe headache", "pain behind the eyes", "stiff neck", "confusion", "intense muscle", "joint pain"]
+        if sum(term in symptoms for term in high_risk_terms) >= 2:
+            return {
+                "triage_level": "HIGH",
+                "possible_conditions": ["Acute febrile illness"],
+                "recommended_specialization": "General Practice",
+                "clinical_summary": "Your symptoms need same-day clinical assessment, particularly because of the high fever and severe pain pattern.",
             }
         return {
             "triage_level": "LOW",

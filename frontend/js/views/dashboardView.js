@@ -20,7 +20,25 @@ async function patientDashboard() {
   const profile = profileResult.data || {};
   const appointments = appointmentsResult.data || [];
   const upcoming = appointments.filter(a => !['COMPLETED','CANCELLED'].includes(a.status)).slice(0, 3);
-  return `<section class="view dashboard-view"><div style="margin-bottom:1.5rem"><h1>Patient Dashboard</h1><p style="color:var(--text-muted)">Welcome back, ${esc(state.user?.full_name || 'Patient')}.</p></div><div class="grid grid-3">${card('Appointments', appointments.length, 'Total scheduled')}${card('Upcoming', upcoming.length, 'Active appointments')}${card('Blood Group', profile.blood_group || 'Not set', 'From your patient profile')}</div><div class="card" style="margin-top:1.25rem"><h2>Patient profile</h2><form id="patient-profile-form" style="display:grid;gap:.75rem;max-width:650px"><label>Date of birth<input name="date_of_birth" type="date" value="${esc(profile.date_of_birth || '')}"></label><label>Blood group<input name="blood_group" value="${esc(profile.blood_group || '')}" placeholder="e.g. O+"></label><label>Emergency contact<input name="emergency_contact" value="${esc(profile.emergency_contact || '')}"></label><label>Medical history<textarea name="medical_history" rows="4" placeholder="Relevant medical history">${esc(profile.medical_history || '')}</textarea></label><button class="btn btn-primary" type="submit">Save profile</button></form></div><div style="margin-top:1.25rem"><h2>Upcoming appointments</h2>${upcoming.length ? upcoming.map(appointmentRow).join('') : '<div class="card">No upcoming appointments.</div>'}</div></section>`;
+  return `<section class="view dashboard-view">
+    <div class="dashboard-hero"><div><span class="eyebrow">PATIENT PORTAL</span><h1>Good to see you, ${esc((state.user?.full_name || 'Patient').split(' ')[0])}.</h1><p>Keep your health information current and manage upcoming care in one place.</p></div><span class="profile-status">● Profile ${profile.date_of_birth ? 'started' : 'needs attention'}</span></div>
+    <div class="grid grid-3">${card('Appointments', appointments.length, 'Total scheduled')}${card('Upcoming', upcoming.length, 'Active appointments')}${card('Blood Group', profile.blood_group || 'Not set', 'From your patient profile')}</div>
+    <div class="profile-card card"><div class="profile-shell">
+      <aside class="profile-overview"><span class="eyebrow">YOUR HEALTH DETAILS</span><div class="profile-avatar">${esc((state.user?.full_name || 'P').charAt(0).toUpperCase())}</div><h2>${esc(state.user?.full_name || 'Patient')}</h2><p>Keep a few essential details updated so your care team has the right context.</p><div class="profile-chip">🔒 Private & secure</div><div class="profile-completion"><span>Profile setup</span><strong>${profile.date_of_birth && profile.blood_group ? 'Complete' : 'Add essentials'}</strong></div></aside>
+      <div class="profile-form-area"><div class="profile-card-heading"><div><h2>Health essentials</h2><p>Only the details clinicians need before an appointment.</p></div></div>
+        <form id="patient-profile-form" class="patient-profile-form">
+          <div class="profile-field"><label for="profile-dob">Date of birth</label><input id="profile-dob" class="form-control" name="date_of_birth" type="date" value="${esc(profile.date_of_birth || '')}"></div>
+          <div class="profile-field"><label for="profile-blood">Blood group</label><select id="profile-blood" class="form-control" name="blood_group"><option value="">Select blood group</option>${['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(value => `<option value="${value}" ${profile.blood_group === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+          <div class="profile-field"><label for="profile-gender">Gender</label><select id="profile-gender" class="form-control" name="gender"><option value="">Prefer not to say</option>${['Male','Female','Other'].map(value => `<option value="${value}" ${profile.gender === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+          <div class="profile-field"><label for="profile-contact">Emergency contact</label><input id="profile-contact" class="form-control" name="emergency_contact" value="${esc(profile.emergency_contact || '')}" placeholder="Name or phone number"></div>
+          <details class="medical-history-panel profile-field-wide"><summary>Medical history <span>Optional</span></summary><textarea id="profile-history" class="form-control" name="medical_history_summary" rows="3" placeholder="Allergies, ongoing conditions, medications, or relevant history">${esc(profile.medical_history_summary || '')}</textarea></details>
+          <div class="profile-actions"><span>Your changes are saved securely.</span><button class="btn btn-primary" type="submit">Save changes</button></div>
+        </form>
+      </div>
+    </div>
+    </div>
+    <div class="appointments-section"><div><span class="eyebrow">CARE TIMELINE</span><h2>Upcoming appointments</h2></div>${upcoming.length ? upcoming.map(appointmentRow).join('') : '<div class="card empty-appointments">📅 No upcoming appointments. Browse the doctor directory to book your first visit.</div>'}</div>
+  </section>`;
 }
 
 async function doctorDashboard() {

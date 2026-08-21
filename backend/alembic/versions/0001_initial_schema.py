@@ -40,10 +40,12 @@ def upgrade() -> None:
     appointment_status = postgresql.ENUM(
         "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED",
         name="appointmentstatus",
+        create_type=False,
     )
     payment_status = postgresql.ENUM(
         "CREATED", "SUCCESS", "FAILED", "REFUNDED",
         name="paymentstatus",
+        create_type=False,
     )
     appointment_status.create(op.get_bind(), checkfirst=True)
     payment_status.create(op.get_bind(), checkfirst=True)

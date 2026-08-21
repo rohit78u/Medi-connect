@@ -86,6 +86,7 @@ export async function loadDoctors(specialization = '') {
           <p style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-muted);">
             ${doc.bio || 'Experienced clinician providing personalized patient care.'}
           </p>
+          <p style="font-size:0.82rem; color:var(--accent-emerald); margin-bottom:1rem;">● Available Monday–Friday, 9:00 AM–5:00 PM</p>
         </div>
 
         <button class="btn btn-primary btn-book-doc" data-id="${doc.id}" data-name="${doc.user.full_name}" style="width:100%;">
@@ -143,7 +144,8 @@ export function initDoctorSearchListeners() {
         return;
       }
 
-      const appointment_date = new Date(dateVal).toISOString();
+      // Keep the patient-selected local date/time intact; the API validates it against the doctor's local clinic hours.
+      const appointment_date = dateVal;
 
       const btn = document.getElementById('btn-confirm-booking');
       btn.disabled = true;

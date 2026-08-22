@@ -78,22 +78,84 @@ async function patientDashboard() {
   </section>`;
 }
 
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function availabilityRows(slots) {
+  if (!slots.length) {
+    return `<div class="card" style="margin-top:12px;background:var(--surface-muted, #f7f9fc)"><p style="margin:0">No weekly availability saved yet. Add your first recurring slot above.</p></div>`;
+  }
+
+  return slots.map(slot => `
+    <div class="card" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+      <div><strong>${esc(DAYS[slot.day_of_week] || 'Unknown day')}</strong><div style="color:var(--text-muted);margin-top:4px">${esc(slot.start_time)} – ${esc(slot.end_time)}</div></div>
+      <span class="role-badge">Weekly</span>
+    </div>
+  `).join('');
+}
+
 async function doctorDashboard() {
-  const result = await api.get('/appointments/doctor-schedule?limit=50');
-  const appointments = result.data || [];
+  const [scheduleResult, availabilityResult] = await Promise.all([
+    api.get('/appointments/doctor-schedule?limit=50'),
+    api.get('/doctors/availability')
+  ]);
+  const appointments = scheduleResult.data || [];
+  const availability = availabilityResult.data || [];
   const active = appointments.filter(a => !['COMPLETED','CANCELLED'].includes(a.status));
-  return `<section class="view dashboard-view"><div class="page-header"><span class="eyebrow">CLINICIAN PORTAL</span><h1 class="page-title">Doctor Dashboard</h1><p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p></div><div class="grid-3">${card('Total appointments', appointments.length, 'Loaded clinical schedule')}${card('Active', active.length, 'Pending or confirmed')}${card('Completed', appointments.filter(a => a.status === 'COMPLETED').length, 'Completed consultations')}</div><div class="card" style="margin-top:22px"><h2>Weekly availability</h2><p style="margin:8px 0 18px">Add recurring availability slots. These slots are enforced by the booking API.</p><form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px"><label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label><label>Start<input class="form-control" name="start_time" type="time" required></label><label>End<input class="form-control" name="end_time" type="time" required></label><div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div></form></div><div style="margin-top:28px"><h2>Schedule</h2>${appointments.length ? appointments.map(appointmentRow).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}</div></section>`;
+
+  return `<section class="view dashboard-view">
+    <div class="page-header">
+      <span class="eyebrow">CLINICIAN PORTAL</span>
+      <h1 class="page-title">Doctor Dashboard</h1>
+      <p class="page-subtitle">Clinical schedule for ${esc(state.user?.full_name || 'Doctor')}.</p>
+    </div>
+
+    <div class="grid-3">
+      ${card('Total appointments', appointments.length, 'Loaded clinical schedule')}
+      ${card('Active', active.length, 'Pending or confirmed')}
+      ${card('Completed', appointments.filter(a => a.status === 'COMPLETED').length, 'Completed consultations')}
+    </div>
+
+    <div class="card" style="margin-top:22px">
+      <h2>Weekly availability</h2>
+      <p style="margin:8px 0 18px">These recurring slots control when patients can request appointments.</p>
+      <form id="availability-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+        <label>Day<select class="form-control" name="day_of_week"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label>
+        <label>Start<input class="form-control" name="start_time" type="time" required></label>
+        <label>End<input class="form-control" name="end_time" type="time" required></label>
+        <div style="display:flex;align-items:end"><button class="btn btn-primary" type="submit">Add slot</button></div>
+      </form>
+    </div>
+
+    <div style="margin-top:22px">
+      <h2>Saved weekly schedule</h2>
+      ${availabilityRows(availability)}
+    </div>
+
+    <div style="margin-top:28px">
+      <h2>Schedule</h2>
+      ${appointments.length ? appointments.map(appointmentRow).join('') : '<div class="card" style="margin-top:12px">No appointments scheduled.</div>'}
+    </div>
+  </section>`;
 }
 
 function adminDoctorRow(doctor) {
   const name = doctor.full_name || doctor.name || 'Doctor';
   const specialization = doctor.specialization || doctor.specialization_name || 'Not specified';
-  return `<div class="card admin-doctor-row" style="margin-top:.75rem"><div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap"><div><strong>${esc(name)}</strong><div style="color:var(--text-muted);font-size:.85rem">${esc(doctor.email || '')} · ${esc(specialization)}</div></div><div><button class="btn btn-primary admin-verify-doctor" data-doctor-id="${esc(doctor.id)}">Approve</button><button class="btn btn-danger admin-reject-doctor" data-doctor-id="${esc(doctor.id)}" style="margin-left:.5rem">Reject</button></div></div></div>`;
+  return `<div class="card admin-doctor-row" style="margin-top:.75rem"><div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap"><div><strong>${esc(name)}</strong><div style="color:var(--text-muted);font-size:.85rem">${esc(doctor.email || '')} · ${esc(specialization)} · License ${esc(doctor.license_number || 'N/A')}</div></div><div><button class="btn btn-primary admin-verify-doctor" data-doctor-id="${esc(doctor.id)}">Approve</button><button class="btn btn-danger admin-reject-doctor" data-doctor-id="${esc(doctor.id)}" style="margin-left:.5rem">Reject</button></div></div></div>`;
 }
-function adminTable(title, rows, empty) { return `<div class="card" style="margin-top:22px"><h2>${esc(title)}</h2>${rows.length ? rows.join('') : `<p style="margin-top:10px">${esc(empty)}</p>`}</div>`; }
+
+function adminTable(title, rows, empty) {
+  return `<div class="card" style="margin-top:22px"><h2>${esc(title)}</h2>${rows.length ? rows.join('') : `<p style="margin-top:10px">${esc(empty)}</p>`}</div>`;
+}
 
 async function adminDashboard() {
-  const [dashboard, doctors, users, appointments, payments] = await Promise.all([api.get('/admin/dashboard'),api.get('/admin/doctors/pending'),api.get('/admin/users'),api.get('/admin/appointments'),api.get('/admin/payments')]);
+  const [dashboard, doctors, users, appointments, payments] = await Promise.all([
+    api.get('/admin/dashboard'),
+    api.get('/admin/doctors/pending'),
+    api.get('/admin/users'),
+    api.get('/admin/appointments'),
+    api.get('/admin/payments')
+  ]);
   const stats = dashboard.data || {};
   const pendingDoctors = doctors.data || [];
   const userRows = (users.data || []).slice(0,10).map(u => `<div class="card" style="margin-top:.5rem"><strong>${esc(u.full_name || 'User')}</strong><div style="color:var(--text-muted);font-size:.85rem">${esc(u.email || '')} · ${u.is_verified ? 'Verified' : 'Unverified'}</div></div>`);
@@ -121,19 +183,41 @@ export function initDashboardListeners() {
     try { await api.put('/patients/me', Object.fromEntries(form.entries())); showToast('Patient profile saved.', 'success'); }
     catch (error) { showToast(error.message || 'Profile update failed.', 'error'); }
   });
+
   document.getElementById('availability-form')?.addEventListener('submit', async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    try { await api.post('/doctors/availability', {day_of_week:Number(form.get('day_of_week')),start_time:form.get('start_time'),end_time:form.get('end_time')}); showToast('Availability slot added.','success'); state.setView('dashboard'); }
-    catch (error) { showToast(error.message || 'Could not add availability.','error'); }
+    try {
+      await api.post('/doctors/availability', {
+        day_of_week: Number(form.get('day_of_week')),
+        start_time: form.get('start_time'),
+        end_time: form.get('end_time')
+      });
+      showToast('Availability slot added.', 'success');
+      state.setView('dashboard');
+    } catch (error) {
+      showToast(error.message || 'Could not add availability.', 'error');
+    }
   });
+
   document.querySelectorAll('.admin-verify-doctor').forEach(button => button.addEventListener('click', async () => {
-    try { await api.post(`/admin/doctors/${button.dataset.doctorId}/verify`,{}); showToast('Doctor approved.','success'); state.setView('dashboard'); }
-    catch (error) { showToast(error.message || 'Doctor approval failed.','error'); }
+    try {
+      await api.post(`/admin/doctors/${button.dataset.doctorId}/verify`, {});
+      showToast('Doctor approved and is now visible to patients.', 'success');
+      state.setView('dashboard');
+    } catch (error) {
+      showToast(error.message || 'Doctor approval failed.', 'error');
+    }
   }));
+
   document.querySelectorAll('.admin-reject-doctor').forEach(button => button.addEventListener('click', async () => {
     if (!window.confirm('Reject this doctor verification request?')) return;
-    try { await api.post(`/admin/doctors/${button.dataset.doctorId}/reject`,{}); showToast('Doctor rejected.','info'); state.setView('dashboard'); }
-    catch (error) { showToast(error.message || 'Doctor rejection failed.','error'); }
+    try {
+      await api.post(`/admin/doctors/${button.dataset.doctorId}/reject`, {});
+      showToast('Doctor rejected.', 'info');
+      state.setView('dashboard');
+    } catch (error) {
+      showToast(error.message || 'Doctor rejection failed.', 'error');
+    }
   }));
 }

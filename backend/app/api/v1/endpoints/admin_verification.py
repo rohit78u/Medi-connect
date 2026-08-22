@@ -21,16 +21,21 @@ async def pending_doctors(
     result = await db.execute(
         select(DoctorProfile).where(DoctorProfile.is_verified.is_(False))
     )
+    doctors = result.scalars().all()
     return [
         {
             "id": str(doctor.id),
             "user_id": str(doctor.user_id),
+            "full_name": doctor.user.full_name if doctor.user else None,
+            "email": doctor.user.email if doctor.user else None,
             "specialization": doctor.specialization.name if doctor.specialization else None,
             "license_number": doctor.license_number,
             "years_of_experience": doctor.years_of_experience,
             "consultation_fee": float(doctor.consultation_fee),
+            "bio": doctor.bio,
+            "is_verified": doctor.is_verified,
         }
-        for doctor in result.scalars().all()
+        for doctor in doctors
     ]
 
 
@@ -45,10 +50,22 @@ async def verify_doctor(
         from app.exceptions.custom_exceptions import NotFoundException
         raise NotFoundException("Doctor not found")
 
+    # A doctor is only visible in patient search when BOTH the clinical
+    # profile and its linked user account are verified.
     doctor.is_verified = True
+    user = await db.get(User, doctor.user_id)
+    if user:
+        user.is_verified = True
+
     await db.commit()
     await db.refresh(doctor)
-    return {"id": str(doctor.id), "is_verified": doctor.is_verified}
+    return {
+        "id": str(doctor.id),
+        "user_id": str(doctor.user_id),
+        "is_verified": doctor.is_verified,
+        "user_is_verified": user.is_verified if user else False,
+        "status": "APPROVED",
+    }
 
 
 @router.post("/{doctor_id}/reject")
@@ -63,5 +80,15 @@ async def reject_doctor(
         raise NotFoundException("Doctor not found")
 
     doctor.is_verified = False
+    user = await db.get(User, doctor.user_id)
+    if user:
+        user.is_verified = False
+
     await db.commit()
-    return {"id": str(doctor.id), "is_verified": False, "status": "REJECTED"}
+    return {
+        "id": str(doctor.id),
+        "user_id": str(doctor.user_id),
+        "is_verified": False,
+        "user_is_verified": user.is_verified if user else False,
+        "status": "REJECTED",
+    }

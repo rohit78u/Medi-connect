@@ -84,6 +84,9 @@ class DoctorService:
         if not doctor:
             raise NotFoundException("Doctor profile not found for user.")
 
+        if data.start_time >= data.end_time:
+            raise BadRequestException("Availability end time must be after start time.")
+
         slot = await self.doctor_repo.add_availability(
             doctor_id=doctor.id,
             day_of_week=data.day_of_week,
@@ -92,3 +95,20 @@ class DoctorService:
         )
         await self.db.commit()
         return AvailabilitySlotResponse.model_validate(slot)
+
+    async def get_my_availability(
+        self,
+        user: User
+    ) -> List[AvailabilitySlotResponse]:
+        """Return the authenticated doctor's saved weekly availability slots."""
+        doctor = await self.doctor_repo.get_by_user_id(user.id)
+        if not doctor:
+            raise NotFoundException("Doctor profile not found for user.")
+
+        return [
+            AvailabilitySlotResponse.model_validate(slot)
+            for slot in sorted(
+                doctor.availabilities,
+                key=lambda item: (item.day_of_week, item.start_time)
+            )
+        ]

@@ -54,6 +54,7 @@ async def search_doctors(
 ):
     """
     Public search endpoint for patients to find available doctors.
+    Only active, user-verified and admin-approved doctor profiles are returned.
     """
     service = DoctorService(db)
     doctors = await service.search_doctors(specialization=specialization, skip=skip, limit=limit)
@@ -84,4 +85,24 @@ async def add_doctor_availability(
         success=True,
         message="Availability schedule slot added successfully",
         data=slot
+    )
+
+
+@router.get(
+    "/availability",
+    response_model=APIResponse[List[AvailabilitySlotResponse]],
+    status_code=status.HTTP_200_OK,
+    summary="Get saved weekly availability schedule"
+)
+async def get_doctor_availability(
+    current_user: User = Depends(require_roles(["DOCTOR", "ADMIN"])),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """Return the saved recurring weekly availability for the authenticated doctor."""
+    service = DoctorService(db)
+    slots = await service.get_my_availability(current_user)
+    return APIResponse(
+        success=True,
+        message=f"Retrieved {len(slots)} availability slots",
+        data=slots
     )
